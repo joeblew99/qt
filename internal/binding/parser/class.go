@@ -12,26 +12,72 @@ import (
 )
 
 type Class struct {
-	Name      string      `xml:"name,attr"`
-	Status    string      `xml:"status,attr"`
-	Access    string      `xml:"access,attr"`
-	Abstract  bool        `xml:"abstract,attr"`
-	Bases     string      `xml:"bases,attr"`
-	Module    string      `xml:"module,attr"`
-	Brief     string      `xml:"brief,attr"`
-	Functions []*Function `xml:"function"`
-	Enums     []*Enum     `xml:"enum"`
-	Variables []*Variable `xml:"variable"`
+	Name       string      `xml:"name,attr"`
+	Status     string      `xml:"status,attr"`
+	Access     string      `xml:"access,attr"`
+	Abstract   bool        `xml:"abstract,attr"`
+	Bases      string      `xml:"bases,attr"`
+	Module     string      `xml:"module,attr"`
+	Brief      string      `xml:"brief,attr"`
+	Functions  []*Function `xml:"function"`
+	Enums      []*Enum     `xml:"enum"`
+	Variables  []*Variable `xml:"variable"`
+	Properties []*Variable `xml:"property"`
+	Classes    []*Class    `xml:"class"`
+
 	DocModule string
 	Stub      bool
 	WeakLink  map[string]bool
 	Export    bool
+	Fullname  string
 }
 
 func (c *Class) register(module string) {
 	c.DocModule = c.Module
 	c.Module = module
 	ClassMap[c.Name] = c
+
+	for _, sc := range c.Classes {
+		if sc.Name == "PaintContext" {
+			var hasConstructor bool
+
+			sc.Fullname = fmt.Sprintf("%v::%v", c.Name, sc.Name)
+			for _, scf := range sc.Functions {
+				if scf.Meta == COPY_CONSTRUCTOR || scf.Meta == MOVE_CONSTRUCTOR || scf.Meta == CONSTRUCTOR {
+					scf.Status = "active"
+					scf.Access = "public"
+					hasConstructor = true
+				}
+			}
+			if !hasConstructor {
+				sc.Functions = append(sc.Functions, &Function{
+					Name:       sc.Name,
+					Fullname:   fmt.Sprintf("%v::%v", sc.Fullname, sc.Name),
+					Access:     "public",
+					Virtual:    "non",
+					Meta:       CONSTRUCTOR,
+					Output:     "",
+					Parameters: []*Parameter{},
+					Signature:  "()",
+				})
+			}
+			sc.register(module)
+		}
+	}
+}
+
+func (c *Class) registerVarsAndProps() {
+	for _, v := range c.Variables {
+		if !c.HasFunctionWithName(v.Name) && !IsPackedList(v.Output) {
+			c.Functions = append(c.Functions, v.variableToFunction(GETTER))
+			if !strings.Contains(v.Output, "const") {
+				c.Functions = append(c.Functions, v.variableToFunction(SETTER))
+			}
+		}
+	}
+	for _, p := range c.Properties {
+		c.Functions = append(c.Functions, p.propertyToFunctions(c)...)
+	}
 }
 
 func (c *Class) removeFunctions() {
@@ -116,23 +162,192 @@ func (c *Class) getAllBases(input []string) []string {
 	return input
 }
 
-func (c *Class) IsQObjectSubClass() bool {
+func (c *Class) IsQObjectSubClass() bool { return c.IsSubClass("QObject") }
 
+func (c *Class) IsSubClass(class string) bool {
 	if c != nil {
-
-		if c.Name == "QObject" {
+		if c.Name == class {
 			return true
 		}
-
 		for _, b := range c.GetAllBases() {
-			if b == "QObject" {
+			if b == class {
 				return true
 			}
 		}
+	}
+	return false
+}
 
+func (c *Class) add() {
+
+	//TODO: needed until input + cgo support for generic Containers<T> to ignore virtuals with moc
+	if c.Module == MOC {
+		for _, sbc := range c.GetBases() {
+			if _, exists := ClassMap[sbc]; exists {
+				for _, sbcf := range ClassMap[sbc].Functions {
+					if IsPackedList(sbcf.Output) {
+						sbcf.Virtual = "non"
+						sbcf.Meta = PLAIN
+					}
+				}
+			}
+		}
+
+		//add generic qRegisterMetaType functions
+		if !c.HasFunctionWithName("qRegisterMetaType") {
+			var tmpF = &Function{
+				Name:           "qRegisterMetaType",
+				Fullname:       fmt.Sprintf("%v::qRegisterMetaType", c.Name),
+				Access:         "public",
+				Virtual:        "non",
+				Meta:           PLAIN,
+				NonMember:      true,
+				NoMocDeduce:    true,
+				Static:         true,
+				Output:         fmt.Sprintf("int"),
+				Parameters:     []*Parameter{},
+				Signature:      "()",
+				TemplateModeGo: fmt.Sprintf("%v*", c.Name),
+			}
+			c.Functions = append(c.Functions, tmpF)
+
+			var f = *tmpF
+			f.Overload = true
+			f.OverloadNumber = "2"
+			f.Parameters = []*Parameter{{Name: "typeName", Value: "const char *"}}
+			f.Signature = "(const char *typeName)"
+			c.Functions = append(c.Functions, &f)
+		}
 	}
 
-	return false
+	switch c.Name {
+	case "QColor", "QFont", "QImage":
+		{
+			c.Functions = append(c.Functions, &Function{
+				Name:       "toVariant",
+				Fullname:   fmt.Sprintf("%v::toVariant", c.Name),
+				Access:     "public",
+				Virtual:    "non",
+				Meta:       PLAIN,
+				Output:     "QVariant",
+				Parameters: []*Parameter{},
+				Signature:  "()",
+			})
+		}
+
+	case "QVariant":
+		{
+			for _, name := range []string{"toColor", "toFont", "toImage"} {
+				c.Functions = append(c.Functions, &Function{
+					Name:       name,
+					Fullname:   fmt.Sprintf("%v::%v", c.Name, name),
+					Access:     "public",
+					Virtual:    "non",
+					Meta:       PLAIN,
+					Output:     strings.Replace(name, "to", "Q", -1),
+					Parameters: []*Parameter{},
+					Signature:  "()",
+				})
+			}
+		}
+	}
+
+	for _, f := range c.Functions {
+		switch f.Output {
+		case "QModelIndexList":
+			{
+				f.Output = "QList<QModelIndex>"
+			}
+
+		case "QVariantList":
+			{
+				f.Output = "QList<QVariant>"
+			}
+
+		case "QObjectList":
+			{
+				f.Output = "QList<QObject *>"
+			}
+
+		case "QMediaResourceList":
+			{
+				f.Output = "QList<QMediaResource>"
+			}
+
+		case "QFileInfoList":
+			{
+				f.Output = "QList<QFileInfo>"
+			}
+
+		case "QWidgetList":
+			{
+				f.Output = "QList<QWidget *>"
+			}
+
+		/* TODO:
+		case "QCameraFocusZoneList":
+		{
+			f.Output = "QList<QCameraFocusZone *>"
+		}
+		*/
+
+		//generics
+
+		case "QList<T>":
+			{
+				f.TemplateModeGo = "QObject*"
+				f.Output = "QList<QObject*>"
+			}
+
+		case "T":
+			{
+				if f.Class() == "QObject" || f.Class() == "QMediaService" {
+					f.TemplateModeGo = fmt.Sprintf("%v*", f.Class())
+					f.Output = fmt.Sprintf("%v*", f.Class())
+				}
+			}
+		}
+
+		if IsPackedList(f.Output) {
+			var b bool
+			for _, p := range f.Parameters {
+				if strings.ContainsAny(p.Value, "<>") {
+					b = true
+					break
+				}
+			}
+
+			if !b && !c.HasFunctionWithName(fmt.Sprintf("%v_atList", f.Name)) {
+				var newF = &Function{
+					Name:       fmt.Sprintf("%v_atList", f.Name),
+					Fullname:   fmt.Sprintf("%v::%v_atList", c.Name, f.Name),
+					Access:     "public",
+					Virtual:    "non",
+					Meta:       PLAIN,
+					Output:     fmt.Sprintf("const %v", strings.Split(strings.Split(f.Output, "<")[1], ">")[0]),
+					Parameters: []*Parameter{{Name: "i", Value: "int"}},
+					Signature:  "()",
+					Container:  strings.Split(f.Output, "<")[0],
+				}
+				c.Functions = append(c.Functions, newF)
+				f.Child = newF
+			}
+		}
+	}
+}
+
+func IsPackedList(value string) bool {
+	return (strings.HasPrefix(value, "QList<") || strings.HasPrefix(value, "QVector<") || strings.HasPrefix(value, "QStack<") || strings.HasPrefix(value, "QQueue<")) && strings.Count(value, "<") == 1 && !strings.Contains(value, ":") && ClassMap[UnpackedList(value)] != nil
+}
+
+func UnpackedList(value string) string {
+	var CleanValue = func(value string) string {
+		for _, b := range []string{"*", "const", "&amp", "&", ";"} {
+			value = strings.Replace(value, b, "", -1)
+		}
+		return strings.TrimSpace(value)
+	}
+	return CleanValue(strings.Split(strings.Split(value, "<")[1], ">")[0])
 }
 
 func (c *Class) fix() {
@@ -180,7 +395,6 @@ func (c *Class) fix() {
 						Value: "bool*",
 					}},
 				Signature: "()",
-				Export:    true,
 			})
 		}
 
@@ -205,7 +419,6 @@ func (c *Class) fix() {
 					Value: "ForeachLoopBody*",
 				}},
 			Signature: "()",
-			Export:    true,
 		})
 	}
 }
@@ -222,7 +435,11 @@ func (c *Class) fixBases() {
 		switch runtime.GOOS {
 		case "windows":
 			{
-				prefixPath = filepath.Join(utils.QT_DIR(), "5.7", "mingw53_32")
+				if utils.UseMsys2() {
+					prefixPath = utils.QT_MSYS2_DIR()
+				} else {
+					prefixPath = filepath.Join(utils.QT_DIR(), "5.7", "mingw53_32")
+				}
 			}
 
 		case "darwin":
@@ -339,7 +556,7 @@ func (c *Class) fixBases() {
 			}
 		}
 
-		if !found && c.Name != "SailfishApp" {
+		if !found && c.Name != "SailfishApp" && c.Fullname == "" {
 			utils.Log.Errorln("failed to find header file for:", c.Name, c.Module)
 		}
 
@@ -474,7 +691,7 @@ var LibDeps = map[string][]string{
 	"build_ios": {"Core", "Gui", "Network", "Sql", "Xml", "DBus", "Nfc", "Script", "Sensors", "Positioning", "Widgets", "Qml", "WebSockets", "XmlPatterns", "Bluetooth", "WebChannel", "Svg", "Multimedia", "Quick", "Help", "Location", "ScriptTools", "MultimediaWidgets", "UiTools", "PrintSupport"},
 }
 
-func (c *Class) hasFunctionWithName(name string) bool {
+func (c *Class) HasFunctionWithName(name string) bool {
 	for _, f := range c.Functions {
 		if strings.ToLower(f.Name) == strings.ToLower(name) {
 			return true

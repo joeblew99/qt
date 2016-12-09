@@ -35,12 +35,12 @@ func GoHeaderName(f *parser.Function) string {
 		}
 	}
 
-	switch f.TemplateMode {
+	switch f.TemplateModeJNI {
 	case "String", "Object":
 		{
 			if strings.Contains(f.Name, "Object") {
-				if f.TemplateMode == "String" {
-					fmt.Fprintf(bb, "%v%v", strings.Replace(strings.Title(f.Name), "Object", "", -1), f.TemplateMode)
+				if f.TemplateModeJNI == "String" {
+					fmt.Fprintf(bb, "%v%v", strings.Replace(strings.Title(f.Name), "Object", "", -1), f.TemplateModeJNI)
 				} else {
 					fmt.Fprint(bb, strings.Title(f.Name))
 				}
@@ -49,7 +49,17 @@ func GoHeaderName(f *parser.Function) string {
 
 	default:
 		{
-			fmt.Fprintf(bb, "%v%v", strings.Title(f.Name), f.TemplateMode)
+			fmt.Fprintf(bb, "%v%v",
+
+				func() string {
+					if strings.HasSuffix(f.Name, "_atList") {
+						return f.Name
+					}
+					return strings.Title(f.Name)
+				}(),
+
+				f.TemplateModeJNI,
+			)
 		}
 	}
 
@@ -78,7 +88,7 @@ func GoHeaderOutput(f *parser.Function) string {
 	switch f.SignalMode {
 	case parser.CALLBACK:
 		{
-			return cgoType(f, f.Output)
+			return cgoTypeOutput(f, f.Output)
 		}
 
 	case parser.CONNECT, parser.DISCONNECT:
@@ -95,6 +105,9 @@ func GoHeaderOutput(f *parser.Function) string {
 
 	var o = goType(f, value)
 	if isClass(o) {
+		if strings.HasPrefix(o, "[]") {
+			return fmt.Sprintf("%v", o)
+		}
 		return fmt.Sprintf("*%v", o)
 	}
 	return o
@@ -216,7 +229,7 @@ func CppHeaderInput(f *parser.Function) string {
 	}
 
 	for _, p := range f.Parameters {
-		if v := cppType(f, p.Value); !(v == "") {
+		if v := cppTypeInput(f, p.Value); v != "" {
 			tmp = append(tmp, fmt.Sprintf("%v %v", v, cleanName(p.Name, p.Value)))
 		} else {
 			f.Access = "unsupported_CppHeaderInput"

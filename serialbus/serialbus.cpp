@@ -13,6 +13,7 @@
 #include <QCanBusFrame>
 #include <QChildEvent>
 #include <QEvent>
+#include <QList>
 #include <QMetaMethod>
 #include <QMetaObject>
 #include <QModbusClient>
@@ -36,14 +37,24 @@
 #include <QTimerEvent>
 #include <QVariant>
 
-void* QCanBus_CreateDevice(void* ptr, char* plugin, char* interfaceName)
+void* QCanBus_CreateDevice(void* ptr, void* plugin, char* interfaceName)
 {
-	return static_cast<QCanBus*>(ptr)->createDevice(QByteArray::fromHex(QString(plugin).toUtf8()), QString(interfaceName));
+	return static_cast<QCanBus*>(ptr)->createDevice(*static_cast<QByteArray*>(plugin), QString(interfaceName));
 }
 
 void* QCanBus_QCanBus_Instance()
 {
 	return QCanBus::instance();
+}
+
+struct QtSerialBus_PackedList QCanBus_Plugins(void* ptr)
+{
+	return ({ QList<QByteArray>* tmpValue = new QList<QByteArray>(static_cast<QCanBus*>(ptr)->plugins()); QtSerialBus_PackedList { tmpValue, tmpValue->size() }; });
+}
+
+void* QCanBus_plugins_atList(void* ptr, int i)
+{
+	return new QByteArray(static_cast<QList<QByteArray>*>(ptr)->at(i));
 }
 
 void QCanBus_TimerEvent(void* ptr, void* event)
@@ -220,9 +231,9 @@ void QCanBusDevice_ErrorOccurred(void* ptr, long long error)
 	static_cast<QCanBusDevice*>(ptr)->errorOccurred(static_cast<QCanBusDevice::CanBusError>(error));
 }
 
-char* QCanBusDevice_ErrorString(void* ptr)
+struct QtSerialBus_PackedString QCanBusDevice_ErrorString(void* ptr)
 {
-	return const_cast<char*>(static_cast<QCanBusDevice*>(ptr)->errorString().toUtf8().prepend("WHITESPACE").constData()+10);
+	return ({ QByteArray t646153 = static_cast<QCanBusDevice*>(ptr)->errorString().toUtf8(); QtSerialBus_PackedString { const_cast<char*>(t646153.prepend("WHITESPACE").constData()+10), t646153.size()-10 }; });
 }
 
 void QCanBusDevice_ConnectFramesReceived(void* ptr)
@@ -260,9 +271,9 @@ char QCanBusDevice_HasOutgoingFrames(void* ptr)
 	return static_cast<QCanBusDevice*>(ptr)->hasOutgoingFrames();
 }
 
-char* QCanBusDevice_InterpretErrorFrame(void* ptr, void* frame)
+struct QtSerialBus_PackedString QCanBusDevice_InterpretErrorFrame(void* ptr, void* frame)
 {
-	return const_cast<char*>(static_cast<QCanBusDevice*>(ptr)->interpretErrorFrame(*static_cast<QCanBusFrame*>(frame)).toUtf8().prepend("WHITESPACE").constData()+10);
+	return ({ QByteArray t5dc8ff = static_cast<QCanBusDevice*>(ptr)->interpretErrorFrame(*static_cast<QCanBusFrame*>(frame)).toUtf8(); QtSerialBus_PackedString { const_cast<char*>(t5dc8ff.prepend("WHITESPACE").constData()+10), t5dc8ff.size()-10 }; });
 }
 
 char QCanBusDevice_Open(void* ptr)
@@ -408,7 +419,7 @@ void* QCanBusDevice_MetaObjectDefault(void* ptr)
 class MyQCanBusFactory: public QCanBusFactory
 {
 public:
-	QCanBusDevice * createDevice(const QString & interfaceName) const { return static_cast<QCanBusDevice*>(callbackQCanBusFactory_CreateDevice(const_cast<MyQCanBusFactory*>(this), const_cast<char*>(interfaceName.toUtf8().prepend("WHITESPACE").constData()+10))); };
+	QCanBusDevice * createDevice(const QString & interfaceName) const { QByteArray tf83f00 = interfaceName.toUtf8(); QtSerialBus_PackedString interfaceNamePacked = { const_cast<char*>(tf83f00.prepend("WHITESPACE").constData()+10), tf83f00.size()-10 };return static_cast<QCanBusDevice*>(callbackQCanBusFactory_CreateDevice(const_cast<MyQCanBusFactory*>(this), interfaceNamePacked)); };
 };
 
 void* QCanBusFactory_CreateDevice(void* ptr, char* interfaceName)
@@ -476,9 +487,9 @@ void* QCanBusFrame_NewQCanBusFrame(long long ty)
 	return new QCanBusFrame(static_cast<QCanBusFrame::FrameType>(ty));
 }
 
-void* QCanBusFrame_NewQCanBusFrame2(unsigned int identifier, char* data)
+void* QCanBusFrame_NewQCanBusFrame2(unsigned int identifier, void* data)
 {
-	return new QCanBusFrame(identifier, QByteArray::fromHex(QString(data).toUtf8()));
+	return new QCanBusFrame(identifier, *static_cast<QByteArray*>(data));
 }
 
 long long QCanBusFrame_Error(void* ptr)
@@ -506,9 +517,9 @@ char QCanBusFrame_IsValid(void* ptr)
 	return static_cast<QCanBusFrame*>(ptr)->isValid();
 }
 
-char* QCanBusFrame_Payload(void* ptr)
+void* QCanBusFrame_Payload(void* ptr)
 {
-	return const_cast<char*>(static_cast<QCanBusFrame*>(ptr)->payload().toHex().prepend("WHITESPACE").constData()+10);
+	return new QByteArray(static_cast<QCanBusFrame*>(ptr)->payload());
 }
 
 void QCanBusFrame_SetError(void* ptr, long long error)
@@ -531,9 +542,9 @@ void QCanBusFrame_SetFrameType(void* ptr, long long newType)
 	static_cast<QCanBusFrame*>(ptr)->setFrameType(static_cast<QCanBusFrame::FrameType>(newType));
 }
 
-void QCanBusFrame_SetPayload(void* ptr, char* data)
+void QCanBusFrame_SetPayload(void* ptr, void* data)
 {
-	static_cast<QCanBusFrame*>(ptr)->setPayload(QByteArray::fromHex(QString(data).toUtf8()));
+	static_cast<QCanBusFrame*>(ptr)->setPayload(*static_cast<QByteArray*>(data));
 }
 
 class MyQModbusClient: public QModbusClient
@@ -864,9 +875,9 @@ void QModbusDevice_ErrorOccurred(void* ptr, long long error)
 	static_cast<QModbusDevice*>(ptr)->errorOccurred(static_cast<QModbusDevice::Error>(error));
 }
 
-char* QModbusDevice_ErrorString(void* ptr)
+struct QtSerialBus_PackedString QModbusDevice_ErrorString(void* ptr)
 {
-	return const_cast<char*>(static_cast<QModbusDevice*>(ptr)->errorString().toUtf8().prepend("WHITESPACE").constData()+10);
+	return ({ QByteArray tb8b824 = static_cast<QModbusDevice*>(ptr)->errorString().toUtf8(); QtSerialBus_PackedString { const_cast<char*>(tb8b824.prepend("WHITESPACE").constData()+10), tb8b824.size()-10 }; });
 }
 
 char QModbusDevice_Open(void* ptr)
@@ -1019,9 +1030,14 @@ char QModbusDeviceIdentification_Contains(void* ptr, unsigned int objectId)
 	return static_cast<QModbusDeviceIdentification*>(ptr)->contains(objectId);
 }
 
-char QModbusDeviceIdentification_Insert(void* ptr, unsigned int objectId, char* value)
+void* QModbusDeviceIdentification_QModbusDeviceIdentification_FromByteArray(void* ba)
 {
-	return static_cast<QModbusDeviceIdentification*>(ptr)->insert(objectId, QByteArray::fromHex(QString(value).toUtf8()));
+	return new QModbusDeviceIdentification(QModbusDeviceIdentification::fromByteArray(*static_cast<QByteArray*>(ba)));
+}
+
+char QModbusDeviceIdentification_Insert(void* ptr, unsigned int objectId, void* value)
+{
+	return static_cast<QModbusDeviceIdentification*>(ptr)->insert(objectId, *static_cast<QByteArray*>(value));
 }
 
 char QModbusDeviceIdentification_IsValid(void* ptr)
@@ -1039,9 +1055,9 @@ void QModbusDeviceIdentification_SetConformityLevel(void* ptr, long long level)
 	static_cast<QModbusDeviceIdentification*>(ptr)->setConformityLevel(static_cast<QModbusDeviceIdentification::ConformityLevel>(level));
 }
 
-char* QModbusDeviceIdentification_Value(void* ptr, unsigned int objectId)
+void* QModbusDeviceIdentification_Value(void* ptr, unsigned int objectId)
 {
-	return const_cast<char*>(static_cast<QModbusDeviceIdentification*>(ptr)->value(objectId).toHex().prepend("WHITESPACE").constData()+10);
+	return new QByteArray(static_cast<QModbusDeviceIdentification*>(ptr)->value(objectId));
 }
 
 class MyQModbusExceptionResponse: public QModbusExceptionResponse
@@ -1098,9 +1114,9 @@ void* QModbusPdu_NewQModbusPdu()
 	return new MyQModbusPdu();
 }
 
-void* QModbusPdu_NewQModbusPdu2(long long code, char* data)
+void* QModbusPdu_NewQModbusPdu2(long long code, void* data)
 {
-	return new MyQModbusPdu(static_cast<QModbusPdu::FunctionCode>(code), QByteArray::fromHex(QString(data).toUtf8()));
+	return new MyQModbusPdu(static_cast<QModbusPdu::FunctionCode>(code), *static_cast<QByteArray*>(data));
 }
 
 void* QModbusPdu_NewQModbusPdu3(void* other)
@@ -1113,9 +1129,9 @@ short QModbusPdu_DataSize(void* ptr)
 	return static_cast<QModbusPdu*>(ptr)->dataSize();
 }
 
-char* QModbusPdu_Data(void* ptr)
+void* QModbusPdu_Data(void* ptr)
 {
-	return const_cast<char*>(static_cast<QModbusPdu*>(ptr)->data().toHex().prepend("WHITESPACE").constData()+10);
+	return new QByteArray(static_cast<QModbusPdu*>(ptr)->data());
 }
 
 long long QModbusPdu_ExceptionCode(void* ptr)
@@ -1138,9 +1154,9 @@ char QModbusPdu_IsValid(void* ptr)
 	return static_cast<QModbusPdu*>(ptr)->isValid();
 }
 
-void QModbusPdu_SetData(void* ptr, char* data)
+void QModbusPdu_SetData(void* ptr, void* data)
 {
-	static_cast<QModbusPdu*>(ptr)->setData(QByteArray::fromHex(QString(data).toUtf8()));
+	static_cast<QModbusPdu*>(ptr)->setData(*static_cast<QByteArray*>(data));
 }
 
 void QModbusPdu_SetFunctionCode(void* ptr, long long code)
@@ -1210,9 +1226,9 @@ void QModbusReply_ErrorOccurred(void* ptr, long long error)
 	static_cast<QModbusReply*>(ptr)->errorOccurred(static_cast<QModbusDevice::Error>(error));
 }
 
-char* QModbusReply_ErrorString(void* ptr)
+struct QtSerialBus_PackedString QModbusReply_ErrorString(void* ptr)
 {
-	return const_cast<char*>(static_cast<QModbusReply*>(ptr)->errorString().toUtf8().prepend("WHITESPACE").constData()+10);
+	return ({ QByteArray teb6a0e = static_cast<QModbusReply*>(ptr)->errorString().toUtf8(); QtSerialBus_PackedString { const_cast<char*>(teb6a0e.prepend("WHITESPACE").constData()+10), teb6a0e.size()-10 }; });
 }
 
 void QModbusReply_ConnectFinished(void* ptr)
@@ -1233,6 +1249,16 @@ void QModbusReply_Finished(void* ptr)
 char QModbusReply_IsFinished(void* ptr)
 {
 	return static_cast<QModbusReply*>(ptr)->isFinished();
+}
+
+void* QModbusReply_RawResult(void* ptr)
+{
+	return new QModbusResponse(static_cast<QModbusReply*>(ptr)->rawResult());
+}
+
+void* QModbusReply_Result(void* ptr)
+{
+	return new QModbusDataUnit(static_cast<QModbusReply*>(ptr)->result());
 }
 
 int QModbusReply_ServerAddress(void* ptr)
@@ -1340,9 +1366,9 @@ void* QModbusRequest_NewQModbusRequest()
 	return new QModbusRequest();
 }
 
-void* QModbusRequest_NewQModbusRequest3(long long code, char* data)
+void* QModbusRequest_NewQModbusRequest3(long long code, void* data)
 {
-	return new QModbusRequest(static_cast<QModbusPdu::FunctionCode>(code), QByteArray::fromHex(QString(data).toUtf8()));
+	return new QModbusRequest(static_cast<QModbusPdu::FunctionCode>(code), *static_cast<QByteArray*>(data));
 }
 
 void* QModbusRequest_NewQModbusRequest2(void* pdu)
@@ -1375,9 +1401,9 @@ void* QModbusResponse_NewQModbusResponse()
 	return new QModbusResponse();
 }
 
-void* QModbusResponse_NewQModbusResponse3(long long code, char* data)
+void* QModbusResponse_NewQModbusResponse3(long long code, void* data)
 {
-	return new QModbusResponse(static_cast<QModbusPdu::FunctionCode>(code), QByteArray::fromHex(QString(data).toUtf8()));
+	return new QModbusResponse(static_cast<QModbusPdu::FunctionCode>(code), *static_cast<QByteArray*>(data));
 }
 
 void* QModbusResponse_NewQModbusResponse2(void* pdu)
@@ -1560,13 +1586,25 @@ void QModbusRtuSerialSlave_DestroyQModbusRtuSerialSlave(void* ptr)
 	static_cast<QModbusRtuSerialSlave*>(ptr)->~QModbusRtuSerialSlave();
 }
 
+void* QModbusRtuSerialSlave_ProcessPrivateRequest(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusRtuSerialSlave*>(ptr)->processPrivateRequest(*static_cast<QModbusPdu*>(request)));
+}
 
+void* QModbusRtuSerialSlave_ProcessPrivateRequestDefault(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusRtuSerialSlave*>(ptr)->QModbusRtuSerialSlave::processPrivateRequest(*static_cast<QModbusPdu*>(request)));
+}
 
+void* QModbusRtuSerialSlave_ProcessRequest(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusRtuSerialSlave*>(ptr)->processRequest(*static_cast<QModbusPdu*>(request)));
+}
 
-
-
-
-
+void* QModbusRtuSerialSlave_ProcessRequestDefault(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusRtuSerialSlave*>(ptr)->QModbusRtuSerialSlave::processRequest(*static_cast<QModbusPdu*>(request)));
+}
 
 char QModbusRtuSerialSlave_ProcessesBroadcast(void* ptr)
 {
@@ -1772,13 +1810,25 @@ void QModbusServer_DataWritten(void* ptr, long long regist, int address, int siz
 	static_cast<QModbusServer*>(ptr)->dataWritten(static_cast<QModbusDataUnit::RegisterType>(regist), address, size);
 }
 
+void* QModbusServer_ProcessPrivateRequest(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusServer*>(ptr)->processPrivateRequest(*static_cast<QModbusPdu*>(request)));
+}
 
+void* QModbusServer_ProcessPrivateRequestDefault(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusServer*>(ptr)->QModbusServer::processPrivateRequest(*static_cast<QModbusPdu*>(request)));
+}
 
+void* QModbusServer_ProcessRequest(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusServer*>(ptr)->processRequest(*static_cast<QModbusPdu*>(request)));
+}
 
-
-
-
-
+void* QModbusServer_ProcessRequestDefault(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusServer*>(ptr)->QModbusServer::processRequest(*static_cast<QModbusPdu*>(request)));
+}
 
 char QModbusServer_ProcessesBroadcast(void* ptr)
 {
@@ -2094,13 +2144,25 @@ void QModbusTcpServer_DestroyQModbusTcpServer(void* ptr)
 	static_cast<QModbusTcpServer*>(ptr)->~QModbusTcpServer();
 }
 
+void* QModbusTcpServer_ProcessPrivateRequest(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusTcpServer*>(ptr)->processPrivateRequest(*static_cast<QModbusPdu*>(request)));
+}
 
+void* QModbusTcpServer_ProcessPrivateRequestDefault(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusTcpServer*>(ptr)->QModbusTcpServer::processPrivateRequest(*static_cast<QModbusPdu*>(request)));
+}
 
+void* QModbusTcpServer_ProcessRequest(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusTcpServer*>(ptr)->processRequest(*static_cast<QModbusPdu*>(request)));
+}
 
-
-
-
-
+void* QModbusTcpServer_ProcessRequestDefault(void* ptr, void* request)
+{
+	return new QModbusResponse(static_cast<QModbusTcpServer*>(ptr)->QModbusTcpServer::processRequest(*static_cast<QModbusPdu*>(request)));
+}
 
 char QModbusTcpServer_ProcessesBroadcast(void* ptr)
 {

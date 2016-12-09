@@ -42,6 +42,8 @@ install:
     DEL %TMP%\%NDK% /Q
 build_script:
 - cmd: >-
-    %GOPATH%\src\github.com\therecipe\qt\setup.bat
+    go get -v github.com/therecipe/qt/cmd/...
 
-    %GOPATH%\src\github.com\therecipe\qt\setup.bat android
+    %GOPATH%\bin\qtsetup
+
+    %GOPATH%\bin\qtsetup android

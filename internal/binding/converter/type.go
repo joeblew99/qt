@@ -13,7 +13,7 @@ func goType(f *parser.Function, value string) string {
 	value = CleanValue(value)
 
 	switch value {
-	case "char", "qint8", "uchar", "quint8", "QString", "QByteArray", "QStringList":
+	case "char", "qint8", "uchar", "quint8", "QString", "QStringList":
 		{
 			if strings.Contains(vOld, "**") || value == "QStringList" {
 				return "[]string"
@@ -95,7 +95,7 @@ func goType(f *parser.Function, value string) string {
 
 	case "T":
 		{
-			switch f.TemplateMode {
+			switch f.TemplateModeJNI {
 			case "Boolean":
 				{
 					return "bool"
@@ -153,16 +153,42 @@ func goType(f *parser.Function, value string) string {
 				return fmt.Sprintf("%v.%v", m, value)
 			}
 
-			if f.TemplateMode == "String" {
+			if f.TemplateModeJNI == "String" {
 				return "string"
 			}
 
 			return value
 		}
+
+	case parser.IsPackedList(value):
+		{
+			value = parser.UnpackedList(value)
+			if m := module(parser.ClassMap[value].Module); m != module(f) {
+				if parser.ClassMap[f.Class()].WeakLink[parser.ClassMap[value].Module] {
+					return "[]unsafe.Pointer"
+				}
+				return fmt.Sprintf("[]*%v.%v", m, value)
+			}
+			return fmt.Sprintf("[]*%v", value)
+		}
 	}
 
 	f.Access = fmt.Sprintf("unsupported_goType(%v)", value)
 	return f.Access
+}
+
+func cgoTypeOutput(f *parser.Function, value string) string {
+	switch CleanValue(value) {
+	case "char", "qint8", "uchar", "quint8", "QString", "QStringList":
+		{
+			return "*C.char"
+		}
+
+	default:
+		{
+			return cgoType(f, value)
+		}
+	}
 }
 
 func cgoType(f *parser.Function, value string) string {
@@ -172,9 +198,9 @@ func cgoType(f *parser.Function, value string) string {
 	value = CleanValue(value)
 
 	switch value {
-	case "char", "qint8", "uchar", "quint8", "QString", "QByteArray", "QStringList":
+	case "char", "qint8", "uchar", "quint8", "QString", "QStringList":
 		{
-			return "*C.char"
+			return fmt.Sprintf("C.struct_%v_PackedString", strings.Title(parser.ClassMap[f.Class()].Module))
 		}
 
 	case "void", "":
@@ -263,15 +289,29 @@ func cgoType(f *parser.Function, value string) string {
 	return f.Access
 }
 
+func cppTypeInput(f *parser.Function, value string) string {
+	switch CleanValue(value) {
+	case "char", "qint8", "uchar", "quint8", "QString", "QStringList":
+		{
+			return "char*"
+		}
+
+	default:
+		{
+			return cppType(f, value)
+		}
+	}
+}
+
 func cppType(f *parser.Function, value string) string {
 	var vOld = value
 
 	value = CleanValue(value)
 
 	switch value {
-	case "char", "qint8", "uchar", "quint8", "QString", "QByteArray", "QStringList":
+	case "char", "qint8", "uchar", "quint8", "QString", "QStringList":
 		{
-			return "char*"
+			return fmt.Sprintf("struct %v_PackedString", strings.Title(parser.ClassMap[f.Class()].Module))
 		}
 
 	case "void", "":
@@ -347,7 +387,7 @@ func cppType(f *parser.Function, value string) string {
 
 	case "T":
 		{
-			switch f.TemplateMode {
+			switch f.TemplateModeJNI {
 			case "Boolean":
 				{
 					return "char"
@@ -395,6 +435,11 @@ func cppType(f *parser.Function, value string) string {
 	case isClass(value):
 		{
 			return "void*"
+		}
+
+	case parser.IsPackedList(value):
+		{
+			return fmt.Sprintf("struct %v_PackedList", strings.Title(parser.ClassMap[f.Class()].Module))
 		}
 	}
 

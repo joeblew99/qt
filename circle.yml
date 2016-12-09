@@ -5,20 +5,21 @@ machine:
     QT_STUB: true
     DESKTOP: true
     ANDROID: true
-    QT_WINDOWS_CC: true
+    QT_WINDOWS_CC: false
+    QT_MXE_ARCH: 386
     GOROOT: /usr/local/go
     GOPATH: /home/ubuntu/.go_project
     JDK_DIR: /usr/lib/jvm/java-8-openjdk-amd64
 dependencies:
   pre:
   override:
-      - go get -d github.com/therecipe/qt
+      - go get -v github.com/therecipe/qt/cmd/...
       - if [[ "$OS" == "linux" ]]; then /home/ubuntu/.go_project/src/github.com/therecipe/qt/internal/ci/linux.sh; fi
   post:
 test:
   pre:
   override:
-    - if [[ "$DESKTOP" == "true" ]]; then /home/ubuntu/.go_project/src/github.com/therecipe/qt/setup.sh; fi
-    - if [[ "$ANDROID" == "true" ]]; then /home/ubuntu/.go_project/src/github.com/therecipe/qt/setup.sh android; fi
-    - if [[ "$QT_WINDOWS_CC" == "true" ]]; then /home/ubuntu/.go_project/src/github.com/therecipe/qt/setup.sh windows; fi
+    - if [[ "$DESKTOP" == "true" ]]; then /home/ubuntu/.go_project/bin/qtsetup; fi
+    - if [[ "$ANDROID" == "true" ]]; then /home/ubuntu/.go_project/bin/qtsetup android; fi
+    - if [[ "$QT_WINDOWS_CC" == "true" ]]; then /home/ubuntu/.go_project/bin/qtsetup windows; fi
   post:

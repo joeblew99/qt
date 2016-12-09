@@ -7,7 +7,6 @@ package xmlpatterns
 //#include "xmlpatterns.h"
 import "C"
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/therecipe/qt"
 	"github.com/therecipe/qt/core"
@@ -16,6 +15,13 @@ import (
 	"strings"
 	"unsafe"
 )
+
+func cGoUnpackString(s C.struct_QtXmlPatterns_PackedString) string {
+	if len := int(s.len); len == -1 {
+		return C.GoString(s.data)
+	}
+	return C.GoStringN(s.data, C.int(s.len))
+}
 
 type QAbstractMessageHandler struct {
 	core.QObject
@@ -1144,7 +1150,9 @@ func (ptr *QAbstractXmlNodeModel) DisconnectName(ni QXmlNodeModelIndex_ITF) {
 
 func (ptr *QAbstractXmlNodeModel) Name(ni QXmlNodeModelIndex_ITF) *QXmlName {
 	if ptr.Pointer() != nil {
-
+		var tmpValue = NewQXmlNameFromPointer(C.QAbstractXmlNodeModel_Name(ptr.Pointer(), PointerFromQXmlNodeModelIndex(ni)))
+		runtime.SetFinalizer(tmpValue, (*QXmlName).DestroyQXmlName)
+		return tmpValue
 	}
 	return nil
 }
@@ -1250,7 +1258,7 @@ func (ptr *QAbstractXmlNodeModel) DisconnectStringValue(n QXmlNodeModelIndex_ITF
 
 func (ptr *QAbstractXmlNodeModel) StringValue(n QXmlNodeModelIndex_ITF) string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QAbstractXmlNodeModel_StringValue(ptr.Pointer(), PointerFromQXmlNodeModelIndex(n)))
+		return cGoUnpackString(C.QAbstractXmlNodeModel_StringValue(ptr.Pointer(), PointerFromQXmlNodeModelIndex(n)))
 	}
 	return ""
 }
@@ -1326,6 +1334,33 @@ func (ptr *QAbstractXmlNodeModel) DestroyQAbstractXmlNodeModelDefault() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QAbstractXmlNodeModel) attributes_atList(i int) *QXmlNodeModelIndex {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQXmlNodeModelIndexFromPointer(C.QAbstractXmlNodeModel_attributes_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QXmlNodeModelIndex).DestroyQXmlNodeModelIndex)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QAbstractXmlNodeModel) namespaceBindings_atList(i int) *QXmlName {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQXmlNameFromPointer(C.QAbstractXmlNodeModel_namespaceBindings_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QXmlName).DestroyQXmlName)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QAbstractXmlNodeModel) nodesByIdref_atList(i int) *QXmlNodeModelIndex {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQXmlNodeModelIndexFromPointer(C.QAbstractXmlNodeModel_nodesByIdref_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QXmlNodeModelIndex).DestroyQXmlNodeModelIndex)
+		return tmpValue
+	}
+	return nil
 }
 
 type QAbstractXmlReceiver struct {
@@ -1457,10 +1492,10 @@ func (ptr *QAbstractXmlReceiver) Characters(value core.QStringRef_ITF) {
 }
 
 //export callbackQAbstractXmlReceiver_Comment
-func callbackQAbstractXmlReceiver_Comment(ptr unsafe.Pointer, value *C.char) {
+func callbackQAbstractXmlReceiver_Comment(ptr unsafe.Pointer, value C.struct_QtXmlPatterns_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QAbstractXmlReceiver::comment"); signal != nil {
-		signal.(func(string))(C.GoString(value))
+		signal.(func(string))(cGoUnpackString(value))
 	}
 
 }
@@ -1604,10 +1639,10 @@ func (ptr *QAbstractXmlReceiver) NamespaceBinding(name QXmlName_ITF) {
 }
 
 //export callbackQAbstractXmlReceiver_ProcessingInstruction
-func callbackQAbstractXmlReceiver_ProcessingInstruction(ptr unsafe.Pointer, target unsafe.Pointer, value *C.char) {
+func callbackQAbstractXmlReceiver_ProcessingInstruction(ptr unsafe.Pointer, target unsafe.Pointer, value C.struct_QtXmlPatterns_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QAbstractXmlReceiver::processingInstruction"); signal != nil {
-		signal.(func(*QXmlName, string))(NewQXmlNameFromPointer(target), C.GoString(value))
+		signal.(func(*QXmlName, string))(NewQXmlNameFromPointer(target), cGoUnpackString(value))
 	}
 
 }
@@ -1919,14 +1954,14 @@ func (ptr *QSimpleXmlNodeModel) DisconnectStringValue() {
 
 func (ptr *QSimpleXmlNodeModel) StringValue(node QXmlNodeModelIndex_ITF) string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QSimpleXmlNodeModel_StringValue(ptr.Pointer(), PointerFromQXmlNodeModelIndex(node)))
+		return cGoUnpackString(C.QSimpleXmlNodeModel_StringValue(ptr.Pointer(), PointerFromQXmlNodeModelIndex(node)))
 	}
 	return ""
 }
 
 func (ptr *QSimpleXmlNodeModel) StringValueDefault(node QXmlNodeModelIndex_ITF) string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QSimpleXmlNodeModel_StringValueDefault(ptr.Pointer(), PointerFromQXmlNodeModelIndex(node)))
+		return cGoUnpackString(C.QSimpleXmlNodeModel_StringValueDefault(ptr.Pointer(), PointerFromQXmlNodeModelIndex(node)))
 	}
 	return ""
 }
@@ -1969,6 +2004,24 @@ func (ptr *QSimpleXmlNodeModel) DestroyQSimpleXmlNodeModelDefault() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QSimpleXmlNodeModel) namespaceBindings_atList(i int) *QXmlName {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQXmlNameFromPointer(C.QSimpleXmlNodeModel_namespaceBindings_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QXmlName).DestroyQXmlName)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QSimpleXmlNodeModel) nodesByIdref_atList(i int) *QXmlNodeModelIndex {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQXmlNodeModelIndexFromPointer(C.QSimpleXmlNodeModel_nodesByIdref_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QXmlNodeModelIndex).DestroyQXmlNodeModelIndex)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQSimpleXmlNodeModel_CompareOrder
@@ -2073,7 +2126,7 @@ func callbackQSimpleXmlNodeModel_Name(ptr unsafe.Pointer, ni unsafe.Pointer) uns
 		return PointerFromQXmlName(signal.(func(*QXmlNodeModelIndex) *QXmlName)(NewQXmlNodeModelIndexFromPointer(ni)))
 	}
 
-	return PointerFromQXmlName(NewQSimpleXmlNodeModelFromPointer(ptr).NameDefault(NewQXmlNodeModelIndexFromPointer(ni)))
+	return PointerFromQXmlName(nil)
 }
 
 func (ptr *QSimpleXmlNodeModel) ConnectName(f func(ni *QXmlNodeModelIndex) *QXmlName) {
@@ -2092,14 +2145,9 @@ func (ptr *QSimpleXmlNodeModel) DisconnectName() {
 
 func (ptr *QSimpleXmlNodeModel) Name(ni QXmlNodeModelIndex_ITF) *QXmlName {
 	if ptr.Pointer() != nil {
-
-	}
-	return nil
-}
-
-func (ptr *QSimpleXmlNodeModel) NameDefault(ni QXmlNodeModelIndex_ITF) *QXmlName {
-	if ptr.Pointer() != nil {
-
+		var tmpValue = NewQXmlNameFromPointer(C.QSimpleXmlNodeModel_Name(ptr.Pointer(), PointerFromQXmlNodeModelIndex(ni)))
+		runtime.SetFinalizer(tmpValue, (*QXmlName).DestroyQXmlName)
+		return tmpValue
 	}
 	return nil
 }
@@ -2471,12 +2519,12 @@ func (ptr *QXmlFormatter) CharactersDefault(value core.QStringRef_ITF) {
 }
 
 //export callbackQXmlFormatter_Comment
-func callbackQXmlFormatter_Comment(ptr unsafe.Pointer, value *C.char) {
+func callbackQXmlFormatter_Comment(ptr unsafe.Pointer, value C.struct_QtXmlPatterns_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QXmlFormatter::comment"); signal != nil {
-		signal.(func(string))(C.GoString(value))
+		signal.(func(string))(cGoUnpackString(value))
 	} else {
-		NewQXmlFormatterFromPointer(ptr).CommentDefault(C.GoString(value))
+		NewQXmlFormatterFromPointer(ptr).CommentDefault(cGoUnpackString(value))
 	}
 }
 
@@ -2626,12 +2674,12 @@ func (ptr *QXmlFormatter) IndentationDepth() int {
 }
 
 //export callbackQXmlFormatter_ProcessingInstruction
-func callbackQXmlFormatter_ProcessingInstruction(ptr unsafe.Pointer, name unsafe.Pointer, value *C.char) {
+func callbackQXmlFormatter_ProcessingInstruction(ptr unsafe.Pointer, name unsafe.Pointer, value C.struct_QtXmlPatterns_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QXmlFormatter::processingInstruction"); signal != nil {
-		signal.(func(*QXmlName, string))(NewQXmlNameFromPointer(name), C.GoString(value))
+		signal.(func(*QXmlName, string))(NewQXmlNameFromPointer(name), cGoUnpackString(value))
 	} else {
-		NewQXmlFormatterFromPointer(ptr).ProcessingInstructionDefault(NewQXmlNameFromPointer(name), C.GoString(value))
+		NewQXmlFormatterFromPointer(ptr).ProcessingInstructionDefault(NewQXmlNameFromPointer(name), cGoUnpackString(value))
 	}
 }
 
@@ -2983,6 +3031,22 @@ func NewQXmlName2(namePool QXmlNamePool_ITF, localName string, namespaceURI stri
 	return tmpValue
 }
 
+func QXmlName_FromClarkName(clarkName string, namePool QXmlNamePool_ITF) *QXmlName {
+	var clarkNameC = C.CString(clarkName)
+	defer C.free(unsafe.Pointer(clarkNameC))
+	var tmpValue = NewQXmlNameFromPointer(C.QXmlName_QXmlName_FromClarkName(clarkNameC, PointerFromQXmlNamePool(namePool)))
+	runtime.SetFinalizer(tmpValue, (*QXmlName).DestroyQXmlName)
+	return tmpValue
+}
+
+func (ptr *QXmlName) FromClarkName(clarkName string, namePool QXmlNamePool_ITF) *QXmlName {
+	var clarkNameC = C.CString(clarkName)
+	defer C.free(unsafe.Pointer(clarkNameC))
+	var tmpValue = NewQXmlNameFromPointer(C.QXmlName_QXmlName_FromClarkName(clarkNameC, PointerFromQXmlNamePool(namePool)))
+	runtime.SetFinalizer(tmpValue, (*QXmlName).DestroyQXmlName)
+	return tmpValue
+}
+
 func QXmlName_IsNCName(candidate string) bool {
 	var candidateC = C.CString(candidate)
 	defer C.free(unsafe.Pointer(candidateC))
@@ -3004,28 +3068,28 @@ func (ptr *QXmlName) IsNull() bool {
 
 func (ptr *QXmlName) LocalName(namePool QXmlNamePool_ITF) string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QXmlName_LocalName(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
+		return cGoUnpackString(C.QXmlName_LocalName(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
 	}
 	return ""
 }
 
 func (ptr *QXmlName) NamespaceUri(namePool QXmlNamePool_ITF) string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QXmlName_NamespaceUri(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
+		return cGoUnpackString(C.QXmlName_NamespaceUri(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
 	}
 	return ""
 }
 
 func (ptr *QXmlName) Prefix(namePool QXmlNamePool_ITF) string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QXmlName_Prefix(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
+		return cGoUnpackString(C.QXmlName_Prefix(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
 	}
 	return ""
 }
 
 func (ptr *QXmlName) ToClarkName(namePool QXmlNamePool_ITF) string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QXmlName_ToClarkName(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
+		return cGoUnpackString(C.QXmlName_ToClarkName(ptr.Pointer(), PointerFromQXmlNamePool(namePool)))
 	}
 	return ""
 }
@@ -3350,6 +3414,15 @@ func (ptr *QXmlQuery) EvaluateTo(result QXmlResultItems_ITF) {
 	}
 }
 
+func (ptr *QXmlQuery) InitialTemplateName() *QXmlName {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQXmlNameFromPointer(C.QXmlQuery_InitialTemplateName(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*QXmlName).DestroyQXmlName)
+		return tmpValue
+	}
+	return nil
+}
+
 func (ptr *QXmlQuery) IsValid() bool {
 	if ptr.Pointer() != nil {
 		return C.QXmlQuery_IsValid(ptr.Pointer()) != 0
@@ -3672,11 +3745,9 @@ func (ptr *QXmlSchema) Load2(source core.QIODevice_ITF, documentUri core.QUrl_IT
 	return false
 }
 
-func (ptr *QXmlSchema) Load3(data string, documentUri core.QUrl_ITF) bool {
+func (ptr *QXmlSchema) Load3(data core.QByteArray_ITF, documentUri core.QUrl_ITF) bool {
 	if ptr.Pointer() != nil {
-		var dataC = C.CString(hex.EncodeToString([]byte(data)))
-		defer C.free(unsafe.Pointer(dataC))
-		return C.QXmlSchema_Load3(ptr.Pointer(), dataC, core.PointerFromQUrl(documentUri)) != 0
+		return C.QXmlSchema_Load3(ptr.Pointer(), core.PointerFromQByteArray(data), core.PointerFromQUrl(documentUri)) != 0
 	}
 	return false
 }
@@ -3886,11 +3957,9 @@ func (ptr *QXmlSchemaValidator) Validate2(source core.QIODevice_ITF, documentUri
 	return false
 }
 
-func (ptr *QXmlSchemaValidator) Validate3(data string, documentUri core.QUrl_ITF) bool {
+func (ptr *QXmlSchemaValidator) Validate3(data core.QByteArray_ITF, documentUri core.QUrl_ITF) bool {
 	if ptr.Pointer() != nil {
-		var dataC = C.CString(hex.EncodeToString([]byte(data)))
-		defer C.free(unsafe.Pointer(dataC))
-		return C.QXmlSchemaValidator_Validate3(ptr.Pointer(), dataC, core.PointerFromQUrl(documentUri)) != 0
+		return C.QXmlSchemaValidator_Validate3(ptr.Pointer(), core.PointerFromQByteArray(data), core.PointerFromQUrl(documentUri)) != 0
 	}
 	return false
 }
@@ -4067,12 +4136,12 @@ func (ptr *QXmlSerializer) CharactersDefault(value core.QStringRef_ITF) {
 }
 
 //export callbackQXmlSerializer_Comment
-func callbackQXmlSerializer_Comment(ptr unsafe.Pointer, value *C.char) {
+func callbackQXmlSerializer_Comment(ptr unsafe.Pointer, value C.struct_QtXmlPatterns_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QXmlSerializer::comment"); signal != nil {
-		signal.(func(string))(C.GoString(value))
+		signal.(func(string))(cGoUnpackString(value))
 	} else {
-		NewQXmlSerializerFromPointer(ptr).CommentDefault(C.GoString(value))
+		NewQXmlSerializerFromPointer(ptr).CommentDefault(cGoUnpackString(value))
 	}
 }
 
@@ -4269,12 +4338,12 @@ func (ptr *QXmlSerializer) OutputDevice() *core.QIODevice {
 }
 
 //export callbackQXmlSerializer_ProcessingInstruction
-func callbackQXmlSerializer_ProcessingInstruction(ptr unsafe.Pointer, name unsafe.Pointer, value *C.char) {
+func callbackQXmlSerializer_ProcessingInstruction(ptr unsafe.Pointer, name unsafe.Pointer, value C.struct_QtXmlPatterns_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QXmlSerializer::processingInstruction"); signal != nil {
-		signal.(func(*QXmlName, string))(NewQXmlNameFromPointer(name), C.GoString(value))
+		signal.(func(*QXmlName, string))(NewQXmlNameFromPointer(name), cGoUnpackString(value))
 	} else {
-		NewQXmlSerializerFromPointer(ptr).ProcessingInstructionDefault(NewQXmlNameFromPointer(name), C.GoString(value))
+		NewQXmlSerializerFromPointer(ptr).ProcessingInstructionDefault(NewQXmlNameFromPointer(name), cGoUnpackString(value))
 	}
 }
 

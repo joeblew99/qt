@@ -19,7 +19,7 @@ The project is pretty much a WIP and **not** recommended to be used in productio
 
 However it should already contain everything you need to build fully featured Qt applications in Go.
 
-[Screenshots of the Line Edits example](internal/screens)
+[Screenshots of the Line Edits example](internal/screenshots)
 
 ## Installation
 
@@ -27,18 +27,18 @@ However it should already contain everything you need to build fully featured Qt
 
 The full installation requires at least **8gb** free ram and takes 20 min.
 
-The stub installation requires only **1gb** free ram and takes 5 min. (**experimental**)
+The stub installation requires only **1gb** free ram and takes 10 min. (**experimental**)
 
-The only differnce between those two version is, that you **won't** be able to use `go run/build` to build your applications if you choose to install the stub version.
+The only difference between those two version is, that you **won't** be able to use `go run/build` to build your applications if you choose to install the stub version.
 You are therefore **limited** to the use of `qtdeploy` to build your application.
 
-To build the stub version export `QT_STUB=true` system wide and procede with the installation as usuall.
+To build the stub version export `QT_STUB=true` system wide and proceed with the installation as usual.
 
 #### Environmental variables
 
-If you define enviormental variables during the installation export them system wide, as they are needed not only during the installation but also later by `qtdeploy`.
+If you define environmental variables during the installation export them system wide, as they are needed not only during the installation but also later.
 
-Add the enviormental variables into your `$HOME/.bash_profile` or `$HOME/.profile` on macOS or Linux.
+Add the environmental variables into your `$HOME/.bash_profile` or `$HOME/.profile` on macOS or Linux.
 
 Or if you are on Windows simply use the advanced system settings.
 
@@ -54,17 +54,31 @@ To cross compile to Windows, Linux and Android.
 
 You can export `QT_DEBUG=true` before "qtdeploying" your application to enable printing of the current function name at runtime.
 
+#### Speedup your development
+
+Instead of using `qtdeploy` during development, you might want to use `qtrcc`, `qtmoc`, `qtminimal` manually with `go build/run -tags=minimal ...`
+
+In general `qtminimal` should always be called after the use of the optional use of `qtrcc` and `qtmoc`.
+
+`qtrcc` is used to bundle your `project/qml` folder so you can access the files within by using the `qrc` prefix, like this `qrc:///qml/somefile` from various Qt functions.
+
+`qtmoc` is used to subclass core.QObject based classes and to add your own signals/slots as shown in some examples.
+
+`qtminimal` is used to create a small subset of the binding tailored to your code to reduce the binary size. (Use the `-tags=minimal` flag to make use of it)
+
+If you use the STUB version, you are forced to use `qtminimal` otherwise it's optional like `qtrcc` and `qtmoc`.
+
 #### Instructions
 
 * Desktop
-	* [Windows](#windows-1)
-	* [macOS](#macos-1)
-	* [Linux](#linux-1)
+	* [Windows](#windows)
+	* [macOS](#macos)
+	* [Linux](#linux)
 
 * Mobile
-	* [Android](#android-1)
-	* [iOS](#ios-1)
-	* [Sailfish OS](#sailfish-os-1)
+	* [Android](#android)
+	* [iOS](#ios)
+	* [Sailfish OS](#sailfish-os)
 
 * Embedded
 	* [Raspberry Pi](#raspberry-pi)
@@ -77,25 +91,34 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 	* https://golang.org/doc/install?download=go1.7.3.windows-amd64.msi
 
-2. Install Qt 5.7.0; you can also define a custom location with **QT_DIR**. **Don't** de-select any default packages in Select Components screen.
+2. Install Qt 5.7.0
 
-	* https://download.qt.io/official_releases/qt/5.7/5.7.0/qt-opensource-windows-x86-android-5.7.0.exe
+	* Install the official prebuilt package; you can also define a custom location with **QT_DIR**.
+		* https://download.qt.io/official_releases/qt/5.7/5.7.0/qt-opensource-windows-x86-android-5.7.0.exe
 
-3. Add the directory that contains **gcc** and **g++** to your **PATH**
+	or
+
+	* Install the Qt-dev package with [MSYS2](http://msys2.github.io) and define **QT_MSYS2=true** or define a custom Qt location with **QT_MSYS2_DIR** (usually: C:\msys32\ or C:\msys64\);
+		* `pacman -Syyu`
+		* if you want to deploy 32-bit applications `pacman -S mingw-w64-i686-qt-creator mingw-w64-i686-qt5`
+		* if you want to deploy 64-bit applications `pacman -S mingw-w64-x86_64-qt-creator mingw-w64-x86_64-qt5`
+		* `pacman -Scc`
+
+3. Add the directory that contains **gcc** and **g++** to your **PATH** (not needed with MSYS2)
 
 	* `C:\Qt\Qt5.7.0\Tools\mingw530_32\bin`
 
 4. Download the binding
 
-	* `go get -d github.com/therecipe/qt`
+	* `go get -v github.com/therecipe/qt/cmd/...`
 
-5. Generate, install and test (20 min)
+5. Generate, install and test (20 min) (MSYS2: run within the MSYS2 MinGW 32-bit or MSYS2 MinGW 64-bit shell)
 
-	* `cd %GOPATH%\src\github.com\therecipe\qt && setup.bat`
+	* `%GOPATH%\bin\qtsetup`
 
 6. Create your first [application](#example)
 
-7. Deploy applications with `%GOPATH%\bin\qtdeploy build desktop path\to\your\project`
+7. Deploy applications with `%GOPATH%\bin\qtdeploy build desktop path\to\your\project` (MSYS2: run within the MSYS2 MinGW 32-bit or MSYS2 MinGW 64-bit shell)
 
 ## macOS
 
@@ -105,7 +128,7 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 2. Install Qt 5.7.0
 
-	* Install the official prebuilt package; you can also define a custom location with **QT_DIR**. **Don't** de-select any default packages in Select Components screen.
+	* Install the official prebuilt package; you can also define a custom location with **QT_DIR**.
 		* without iOS https://download.qt.io/official_releases/qt/5.7/5.7.0/qt-opensource-mac-x64-android-5.7.0.dmg
 		* with iOS https://download.qt.io/official_releases/qt/5.7/5.7.0/qt-opensource-mac-x64-android-ios-5.7.0.dmg
 
@@ -120,11 +143,11 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 4. Download the binding
 
-	* `go get -d github.com/therecipe/qt`
+	* `go get -v github.com/therecipe/qt/cmd/...`
 
 5. Generate, install and test (20 min)
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh`
+	* `$GOPATH/bin/qtsetup`
 
 6. Create your first [application](#example)
 
@@ -138,7 +161,7 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 2. Install Qt 5.7.0
 
-	* Install the official prebuilt package; you can also define a custom location with **QT_DIR**. **Don't** de-select any default packages in Select Components screen.
+	* Install the official prebuilt package; you can also define a custom location with **QT_DIR**.
 		* https://download.qt.io/official_releases/qt/5.7/5.7.0/qt-opensource-linux-x64-android-5.7.0.run
 
 	or
@@ -162,11 +185,11 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 4. Download the binding
 
-	* `go get -d github.com/therecipe/qt`
+	* `go get -v github.com/therecipe/qt/cmd/...`
 
 5. Generate, install and test (20 min)
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh`
+	* `$GOPATH/bin/qtsetup`
 
 6. Create your first [application](#example)
 
@@ -186,17 +209,21 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 	* `sudo apt-get update`
 
-	* `sudo apt-get -y install mxe-i686-w64-mingw32.shared-qt3d mxe-i686-w64-mingw32.shared-qtactiveqt mxe-i686-w64-mingw32.shared-qtbase mxe-i686-w64-mingw32.shared-qtcanvas3d mxe-i686-w64-mingw32.shared-qtcharts mxe-i686-w64-mingw32.shared-qtconnectivity mxe-i686-w64-mingw32.shared-qtdatavis3d mxe-i686-w64-mingw32.shared-qtdeclarative mxe-i686-w64-mingw32.shared-qtdeclarative-render2d mxe-i686-w64-mingw32.shared-qtgamepad mxe-i686-w64-mingw32.shared-qtgraphicaleffects mxe-i686-w64-mingw32.shared-qtimageformats mxe-i686-w64-mingw32.shared-qtlocation mxe-i686-w64-mingw32.shared-qtmultimedia mxe-i686-w64-mingw32.shared-qtofficeopenxml mxe-i686-w64-mingw32.shared-qtpurchasing mxe-i686-w64-mingw32.shared-qtquickcontrols mxe-i686-w64-mingw32.shared-qtquickcontrols2 mxe-i686-w64-mingw32.shared-qtscript mxe-i686-w64-mingw32.shared-qtscxml mxe-i686-w64-mingw32.shared-qtsensors mxe-i686-w64-mingw32.shared-qtserialbus mxe-i686-w64-mingw32.shared-qtserialport mxe-i686-w64-mingw32.shared-qtservice mxe-i686-w64-mingw32.shared-qtsvg mxe-i686-w64-mingw32.shared-qtsystems mxe-i686-w64-mingw32.shared-qttools mxe-i686-w64-mingw32.shared-qttranslations mxe-i686-w64-mingw32.shared-qtvirtualkeyboard mxe-i686-w64-mingw32.shared-qtwebchannel mxe-i686-w64-mingw32.shared-qtwebkit mxe-i686-w64-mingw32.shared-qtwebsockets mxe-i686-w64-mingw32.shared-qtwinextras mxe-i686-w64-mingw32.shared-qtxlsxwriter mxe-i686-w64-mingw32.shared-qtxmlpatterns`
+	* if you want to deploy 32-bit applications `sudo apt-get -y install mxe-i686-w64-mingw32.shared-qt3d mxe-i686-w64-mingw32.shared-qtactiveqt mxe-i686-w64-mingw32.shared-qtbase mxe-i686-w64-mingw32.shared-qtcanvas3d mxe-i686-w64-mingw32.shared-qtcharts mxe-i686-w64-mingw32.shared-qtconnectivity mxe-i686-w64-mingw32.shared-qtdatavis3d mxe-i686-w64-mingw32.shared-qtdeclarative mxe-i686-w64-mingw32.shared-qtdeclarative-render2d mxe-i686-w64-mingw32.shared-qtgamepad mxe-i686-w64-mingw32.shared-qtgraphicaleffects mxe-i686-w64-mingw32.shared-qtimageformats mxe-i686-w64-mingw32.shared-qtlocation mxe-i686-w64-mingw32.shared-qtmultimedia mxe-i686-w64-mingw32.shared-qtofficeopenxml mxe-i686-w64-mingw32.shared-qtpurchasing mxe-i686-w64-mingw32.shared-qtquickcontrols mxe-i686-w64-mingw32.shared-qtquickcontrols2 mxe-i686-w64-mingw32.shared-qtscript mxe-i686-w64-mingw32.shared-qtscxml mxe-i686-w64-mingw32.shared-qtsensors mxe-i686-w64-mingw32.shared-qtserialbus mxe-i686-w64-mingw32.shared-qtserialport mxe-i686-w64-mingw32.shared-qtservice mxe-i686-w64-mingw32.shared-qtsvg mxe-i686-w64-mingw32.shared-qtsystems mxe-i686-w64-mingw32.shared-qttools mxe-i686-w64-mingw32.shared-qttranslations mxe-i686-w64-mingw32.shared-qtvirtualkeyboard mxe-i686-w64-mingw32.shared-qtwebchannel mxe-i686-w64-mingw32.shared-qtwebkit mxe-i686-w64-mingw32.shared-qtwebsockets mxe-i686-w64-mingw32.shared-qtwinextras mxe-i686-w64-mingw32.shared-qtxlsxwriter mxe-i686-w64-mingw32.shared-qtxmlpatterns`
 
-3. Generate, install and test (20 min)
+	* if you want to deploy 64-bit applications `sudo apt-get -y install mxe-x86-64-w64-mingw32.shared-qt3d mxe-x86-64-w64-mingw32.shared-qtactiveqt mxe-x86-64-w64-mingw32.shared-qtbase mxe-x86-64-w64-mingw32.shared-qtcanvas3d mxe-x86-64-w64-mingw32.shared-qtcharts mxe-x86-64-w64-mingw32.shared-qtconnectivity mxe-x86-64-w64-mingw32.shared-qtdatavis3d mxe-x86-64-w64-mingw32.shared-qtdeclarative mxe-x86-64-w64-mingw32.shared-qtdeclarative-render2d mxe-x86-64-w64-mingw32.shared-qtgamepad mxe-x86-64-w64-mingw32.shared-qtgraphicaleffects mxe-x86-64-w64-mingw32.shared-qtimageformats mxe-x86-64-w64-mingw32.shared-qtlocation mxe-x86-64-w64-mingw32.shared-qtmultimedia mxe-x86-64-w64-mingw32.shared-qtofficeopenxml mxe-x86-64-w64-mingw32.shared-qtpurchasing mxe-x86-64-w64-mingw32.shared-qtquickcontrols mxe-x86-64-w64-mingw32.shared-qtquickcontrols2 mxe-x86-64-w64-mingw32.shared-qtscript mxe-x86-64-w64-mingw32.shared-qtscxml mxe-x86-64-w64-mingw32.shared-qtsensors mxe-x86-64-w64-mingw32.shared-qtserialbus mxe-x86-64-w64-mingw32.shared-qtserialport mxe-x86-64-w64-mingw32.shared-qtservice mxe-x86-64-w64-mingw32.shared-qtsvg mxe-x86-64-w64-mingw32.shared-qtsystems mxe-x86-64-w64-mingw32.shared-qttools mxe-x86-64-w64-mingw32.shared-qttranslations mxe-x86-64-w64-mingw32.shared-qtvirtualkeyboard mxe-x86-64-w64-mingw32.shared-qtwebchannel mxe-x86-64-w64-mingw32.shared-qtwebkit mxe-x86-64-w64-mingw32.shared-qtwebsockets mxe-x86-64-w64-mingw32.shared-qtwinextras mxe-x86-64-w64-mingw32.shared-qtxlsxwriter mxe-x86-64-w64-mingw32.shared-qtxmlpatterns`
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh windows`
+3. Export `QT_MXE_ARCH=386` to deploy 32-bit applications or `QT_MXE_ARCH=amd64` to deploy 64-bit applications.
 
-4. Deploy applications with `$GOPATH/bin/qtdeploy build windows path/to/your/project`
+4. Generate, install and test (20 min)
+
+	* `$GOPATH/bin/qtsetup windows`
+
+5. Deploy applications with `$GOPATH/bin/qtdeploy build windows path/to/your/project`
 
 ## Android
 
-1. Install the desktop version for [Windows](#windows-1), [macOS](#macos-1) or [Linux](#linux-1)
+1. Install the desktop version for [Windows](#windows), [macOS](#macos) or [Linux](#linux)
 
 2. Unzip the Android SDK in `C:\` or `$HOME`; you can also define a custom location with **ANDROID_SDK_DIR**
 	* https://dl.google.com/android/android-sdk_r24.4.1-windows.zip
@@ -205,7 +232,7 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 3. Install the SDK dependencies with `C:\android-sdk-windows\tools\android.bat` or `$HOME/android-sdk-{ macosx | linux }/tools/android`
 	* Tools
-		* Android SDK Build-tools (25.0.0)
+		* Android SDK Build-tools (25.0.1)
 	* Android 7.1.1 (API 25)
 		* SDK Platform
 	* Extras (Windows only)
@@ -219,25 +246,27 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 5. Install Java SE Development Kit >= 8 (Linux: install in `$HOME/jdk/`); you can also define a custom location with **JDK_DIR**
 	* https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
 
-6. Install and test (20 min)
+6. You may need to `chmod` your `$GOROOT/pkg` dir or run the setup as **root**
 
-	* `cd %GOPATH%\src\github.com\therecipe\qt && setup.bat android`
+7. Install and test (20 min)
+
+	* `%GOPATH%\bin\qtsetup android`
 
 		or
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh android`
+	* `$GOPATH/bin/qtsetup android`
 
-7. Create your first [application](#example)
+8. Create your first [application](#example)
 
-8. Deploy applications with `[GOPATH]/bin/qtdeploy build android path/to/your/project`
+9. Deploy applications with `[GOPATH]/bin/qtdeploy build android path/to/your/project`
 
 ## iOS
 
-1. Install the desktop version for [macOS](#macos-1)
+1. Install the desktop version for [macOS](#macos)
 
 2. Install and test (20 min)
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh ios && ./setup.sh ios-simulator`
+	* `$GOPATH/bin/qtsetup ios && $GOPATH/bin/qtsetup ios-simulator`
 
 3. Create your first [application](#example)
 
@@ -245,7 +274,7 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 ## Sailfish OS
 
-1. Install the desktop version for [Windows](#windows-1), [macOS](#macos-1) or [Linux](#linux-1)
+1. Install the desktop version for [Windows](#windows), [macOS](#macos) or [Linux](#linux)
 
 2. Install VirtualBox; you can also define a custom location with **VIRTUALBOX_DIR**
 	* http://download.virtualbox.org/virtualbox/5.1.8/VirtualBox-5.1.8-111374-Win.exe
@@ -257,21 +286,23 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 	* https://releases.sailfishos.org/sdk/installers/1608/SailfishOSSDK-Beta-1608-Qt5-mac-offline.dmg
 	* https://releases.sailfishos.org/sdk/installers/1608/SailfishOSSDK-Beta-1608-Qt5-linux-64-offline.run
 
-4. Install and test (20 min)
+4. You may need to `chmod` your `$GOROOT` dir or run the setup as **root**
 
-	* `cd %GOPATH%\src\github.com\therecipe\qt && setup.bat sailfish && setup.bat sailfish-emulator`
+5. Install and test (20 min)
+
+	* `%GOPATH%\bin\qtsetup sailfish && %GOPATH%\bin\qtsetup sailfish-emulator`
 
 		or
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh sailfish && ./setup.sh sailfish-emulator`
+	* `$GOPATH/bin/qtsetup sailfish && $GOPATH/bin/qtsetup sailfish-emulator`
 
-5. Create your first [application](#example)
+6. Create your first [application](#example)
 
-6. Deploy applications with `[GOPATH]/bin/qtdeploy build sailfish path/to/your/project` or `[GOPATH]/bin/qtdeploy build sailfish-emulator path/to/your/project`
+7. Deploy applications with `[GOPATH]/bin/qtdeploy build sailfish path/to/your/project` or `[GOPATH]/bin/qtdeploy build sailfish-emulator path/to/your/project`
 
 ## Raspberry Pi
 
-1. Install the desktop version for [Linux](#linux-1)
+1. Install the desktop version for [Linux](#linux)
 
 2. Create a folder `$HOME/raspi`
 
@@ -373,18 +404,20 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 	* `sudo chown -R $USER $HOME/Qt5.7.0/`
 
-14. Install and test the binding (20 min)
+14. You may need to `chmod` your `$GOROOT/pkg` dir or run the setup as **root**
+
+15. Install and test the binding (20 min)
 
 	* Raspberry Pi 1
-		* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh rpi1`
+		* `$GOPATH/bin/qtsetup rpi1`
 
 	* Raspberry Pi 2
-		* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh rpi2`
+		* `$GOPATH/bin/qtsetup rpi2`
 
 	* Raspberry Pi 3
-		* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh rpi3`
+		* `$GOPATH/bin/qtsetup rpi3`
 
-15. Notes
+16. Notes
 
 	* run `startx &` before starting an application with `-platform xcb` (qml/quick applications won't work; they may work with Qt 5.8)
 
@@ -392,13 +425,13 @@ You can export `QT_DEBUG=true` before "qtdeploying" your application to enable p
 
 	* you can increase the available gpu memory by editing `/boot/config.txt`
 
-16. Create your first [application](#example)
+17. Create your first [application](#example)
 
-17. Deploy applications with `$GOPATH/bin/qtdeploy build rpiX path/to/your/project` (replace X with 1, 2 or 3)
+18. Deploy applications with `$GOPATH/bin/qtdeploy build rpiX path/to/your/project` (replace X with 1, 2 or 3)
 
 ## Docker
 
-1. Install the desktop version for [Windows](#windows-1), [macOS](#macos-1) or [Linux](#linux-1)
+1. Install the desktop version for [Windows](#windows), [macOS](#macos) or [Linux](#linux)
 
 2. Install and start [Docker](https://www.docker.com)
 
@@ -410,11 +443,15 @@ And make sure your Project folder is in your **GOPATH**.
 
 * For cross compiling to Windows:
 
-	* `docker pull therecipe/qt:base_windows`
+	* `docker pull therecipe/qt:base_windows` (to deploy 32-bit applications)
+
+	* `docker pull therecipe/qt:base_windows_64` (to deploy 64-bit applications)
 
 	* **Optional:** Install [Wine](https://www.winehq.org) to test your applications.
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh windows-docker`
+	* define `QT_MXE_ARCH=386` to deploy 32-bit applications or `QT_MXE_ARCH=amd64` to deploy 64-bit applications
+
+	* `$GOPATH/bin/qtsetup windows-docker`
 
 	* Deploy applications with `$GOPATH/bin/qtdeploy build windows path/to/your/project docker`
 
@@ -422,7 +459,7 @@ And make sure your Project folder is in your **GOPATH**.
 
 	* `docker pull therecipe/qt:base`
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh linux-docker`
+	* `$GOPATH/bin/qtsetup linux-docker`
 
 	* Deploy applications with `$GOPATH/bin/qtdeploy build linux path/to/your/project docker`
 
@@ -430,9 +467,38 @@ And make sure your Project folder is in your **GOPATH**.
 
 	* `docker pull therecipe/qt:base_android`
 
-	* `cd $GOPATH/src/github.com/therecipe/qt && ./setup.sh android-docker`
+	* `$GOPATH/bin/qtsetup android-docker`
 
 	* Deploy applications with `$GOPATH/bin/qtdeploy build android path/to/your/project docker`
+
+## Code Editor Settings (for code completion)
+
+* IntelliJ Idea
+
+    Help > Edit Custom Properties
+    ```
+    # custom IntelliJ IDEA properties
+
+    idea.max.intellisense.filesize=999999
+    ```
+
+    Help > Edit Custom VM Options
+
+    ```
+    # custom IntelliJ IDEA VM options
+
+    -Xms128m
+    -Xmx2000m
+    -XX:ReservedCodeCacheSize=240m
+    -XX:+UseCompressedOops
+    ```
+
+* Neovim
+
+    Update your neocomplete.vim
+    ```
+    let g:neocomplete#skip_auto_completion_time = ""
+    ```
 
 ## Example
 
@@ -474,7 +540,7 @@ func main() {
 }
 ```
 
-3. Open the terminal in `[GOPATH]/src/qtExample` and run `[GOPATH]/bin/qtdeploy build desktop`
+3. Open the terminal in `[GOPATH]/src` and run `[GOPATH]/bin/qtdeploy build desktop ./qtExample`
 
 4. You will find the application in `[GOPATH]/src/qtExample/deploy/[GOOS]_minimal/`
 

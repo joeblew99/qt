@@ -15,6 +15,13 @@ import (
 	"unsafe"
 )
 
+func cGoUnpackString(s C.struct_QtMacExtras_PackedString) string {
+	if len := int(s.len); len == -1 {
+		return C.GoString(s.data)
+	}
+	return C.GoStringN(s.data, C.int(s.len))
+}
+
 type QMacPasteboardMime struct {
 	ptr unsafe.Pointer
 }
@@ -54,10 +61,10 @@ func NewQMacPasteboardMimeFromPointer(ptr unsafe.Pointer) *QMacPasteboardMime {
 }
 
 //export callbackQMacPasteboardMime_CanConvert
-func callbackQMacPasteboardMime_CanConvert(ptr unsafe.Pointer, mime *C.char, flav *C.char) C.char {
+func callbackQMacPasteboardMime_CanConvert(ptr unsafe.Pointer, mime C.struct_QtMacExtras_PackedString, flav C.struct_QtMacExtras_PackedString) C.char {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QMacPasteboardMime::canConvert"); signal != nil {
-		return C.char(int8(qt.GoBoolToInt(signal.(func(string, string) bool)(C.GoString(mime), C.GoString(flav)))))
+		return C.char(int8(qt.GoBoolToInt(signal.(func(string, string) bool)(cGoUnpackString(mime), cGoUnpackString(flav)))))
 	}
 
 	return C.char(int8(qt.GoBoolToInt(false)))
@@ -114,7 +121,7 @@ func (ptr *QMacPasteboardMime) DisconnectConvertorName() {
 
 func (ptr *QMacPasteboardMime) ConvertorName() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QMacPasteboardMime_ConvertorName(ptr.Pointer()))
+		return cGoUnpackString(C.QMacPasteboardMime_ConvertorName(ptr.Pointer()))
 	}
 	return ""
 }
@@ -158,10 +165,10 @@ func (ptr *QMacPasteboardMime) CountDefault(mimeData core.QMimeData_ITF) int {
 }
 
 //export callbackQMacPasteboardMime_FlavorFor
-func callbackQMacPasteboardMime_FlavorFor(ptr unsafe.Pointer, mime *C.char) *C.char {
+func callbackQMacPasteboardMime_FlavorFor(ptr unsafe.Pointer, mime C.struct_QtMacExtras_PackedString) *C.char {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QMacPasteboardMime::flavorFor"); signal != nil {
-		return C.CString(signal.(func(string) string)(C.GoString(mime)))
+		return C.CString(signal.(func(string) string)(cGoUnpackString(mime)))
 	}
 
 	return C.CString("")
@@ -185,16 +192,16 @@ func (ptr *QMacPasteboardMime) FlavorFor(mime string) string {
 	if ptr.Pointer() != nil {
 		var mimeC = C.CString(mime)
 		defer C.free(unsafe.Pointer(mimeC))
-		return C.GoString(C.QMacPasteboardMime_FlavorFor(ptr.Pointer(), mimeC))
+		return cGoUnpackString(C.QMacPasteboardMime_FlavorFor(ptr.Pointer(), mimeC))
 	}
 	return ""
 }
 
 //export callbackQMacPasteboardMime_MimeFor
-func callbackQMacPasteboardMime_MimeFor(ptr unsafe.Pointer, flav *C.char) *C.char {
+func callbackQMacPasteboardMime_MimeFor(ptr unsafe.Pointer, flav C.struct_QtMacExtras_PackedString) *C.char {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QMacPasteboardMime::mimeFor"); signal != nil {
-		return C.CString(signal.(func(string) string)(C.GoString(flav)))
+		return C.CString(signal.(func(string) string)(cGoUnpackString(flav)))
 	}
 
 	return C.CString("")
@@ -218,7 +225,7 @@ func (ptr *QMacPasteboardMime) MimeFor(flav string) string {
 	if ptr.Pointer() != nil {
 		var flavC = C.CString(flav)
 		defer C.free(unsafe.Pointer(flavC))
-		return C.GoString(C.QMacPasteboardMime_MimeFor(ptr.Pointer(), flavC))
+		return cGoUnpackString(C.QMacPasteboardMime_MimeFor(ptr.Pointer(), flavC))
 	}
 	return ""
 }
@@ -261,6 +268,15 @@ func (ptr *QMacPasteboardMime) DestroyQMacPasteboardMimeDefault() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QMacPasteboardMime) convertFromMime_atList(i int) *core.QByteArray {
+	if ptr.Pointer() != nil {
+		var tmpValue = core.NewQByteArrayFromPointer(C.QMacPasteboardMime_convertFromMime_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*core.QByteArray).DestroyQByteArray)
+		return tmpValue
+	}
+	return nil
 }
 
 type QMacToolBar struct {
@@ -351,6 +367,19 @@ func (ptr *QMacToolBar) AddSeparator() {
 	}
 }
 
+func (ptr *QMacToolBar) AllowedItems() []*QMacToolBarItem {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtMacExtras_PackedList) []*QMacToolBarItem {
+			var out = make([]*QMacToolBarItem, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQMacToolBarFromPointer(l.data).allowedItems_atList(i)
+			}
+			return out
+		}(C.QMacToolBar_AllowedItems(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QMacToolBar) AttachToWindow(window gui.QWindow_ITF) {
 	if ptr.Pointer() != nil {
 		C.QMacToolBar_AttachToWindow(ptr.Pointer(), gui.PointerFromQWindow(window))
@@ -363,12 +392,47 @@ func (ptr *QMacToolBar) DetachFromWindow() {
 	}
 }
 
+func (ptr *QMacToolBar) Items() []*QMacToolBarItem {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtMacExtras_PackedList) []*QMacToolBarItem {
+			var out = make([]*QMacToolBarItem, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQMacToolBarFromPointer(l.data).items_atList(i)
+			}
+			return out
+		}(C.QMacToolBar_Items(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QMacToolBar) DestroyQMacToolBar() {
 	if ptr.Pointer() != nil {
 		C.QMacToolBar_DestroyQMacToolBar(ptr.Pointer())
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QMacToolBar) allowedItems_atList(i int) *QMacToolBarItem {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQMacToolBarItemFromPointer(C.QMacToolBar_allowedItems_atList(ptr.Pointer(), C.int(int32(i))))
+		if !qt.ExistsSignal(fmt.Sprint(tmpValue.Pointer()), "QObject::destroyed") {
+			tmpValue.ConnectDestroyed(func(*core.QObject) { tmpValue.SetPointer(nil) })
+		}
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QMacToolBar) items_atList(i int) *QMacToolBarItem {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQMacToolBarItemFromPointer(C.QMacToolBar_items_atList(ptr.Pointer(), C.int(int32(i))))
+		if !qt.ExistsSignal(fmt.Sprint(tmpValue.Pointer()), "QObject::destroyed") {
+			tmpValue.ConnectDestroyed(func(*core.QObject) { tmpValue.SetPointer(nil) })
+		}
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQMacToolBar_TimerEvent
@@ -879,7 +943,7 @@ func (ptr *QMacToolBarItem) StandardItem() QMacToolBarItem__StandardItem {
 
 func (ptr *QMacToolBarItem) Text() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QMacToolBarItem_Text(ptr.Pointer()))
+		return cGoUnpackString(C.QMacToolBarItem_Text(ptr.Pointer()))
 	}
 	return ""
 }

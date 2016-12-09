@@ -1,7 +1,5 @@
 package parser
 
-import "strings"
-
 type Module struct {
 	Namespace *Namespace `xml:"namespace"`
 	Project   string     `xml:"project,attr"`
@@ -25,13 +23,9 @@ func (m *Module) Prepare() {
 	if m.Namespace != nil {
 		for _, c := range m.Namespace.Classes {
 			c.register(m.Project)
-			for _, v := range c.Variables {
-				if !c.hasFunctionWithName(v.Name) {
-					c.Functions = append(c.Functions, v.toFunction(GETTER))
-					if !strings.Contains(v.Output, "const") {
-						c.Functions = append(c.Functions, v.toFunction(SETTER))
-					}
-				}
+			c.registerVarsAndProps()
+			for _, sc := range c.Classes {
+				sc.registerVarsAndProps()
 			}
 		}
 	}
@@ -52,6 +46,7 @@ func (m *Module) Prepare() {
 			c.fix()
 			c.removeFunctions()
 			c.removeEnums()
+			c.add()
 		}
 	}
 

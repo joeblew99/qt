@@ -190,6 +190,9 @@ func CppTemplate(module string) []byte {
 
 				fmt.Fprint(bb, "};\n\n")
 			}
+			if class.Module == parser.MOC {
+				fmt.Fprintf(bb, "Q_DECLARE_METATYPE(%v*)\n\n", class.Name)
+			}
 
 			implementedVirtuals = make(map[string]bool)
 
@@ -234,7 +237,7 @@ func CppTemplate(module string) []byte {
 						{
 							for _, mode := range converter.CppOutputParametersJNIGenericModes(function) {
 								var function = *function
-								function.TemplateMode = mode
+								function.TemplateModeJNI = mode
 
 								fmt.Fprintf(bb, "%v\n\n", cppFunction(&function))
 							}
@@ -371,7 +374,9 @@ func preambleCpp(module string, input []byte) []byte {
 		if class == "SailfishApp" {
 			fmt.Fprintln(bb, "#include <sailfishapp.h>")
 		} else {
-			fmt.Fprintf(bb, "#include <%v>\n", class)
+			if strings.HasPrefix(class, "Q") {
+				fmt.Fprintf(bb, "#include <%v>\n", class)
+			}
 		}
 	}
 	fmt.Fprint(bb, "\n")

@@ -70,7 +70,9 @@ func cppFunctionCallbackHeader(function *parser.Function) string {
 }
 
 func cppFunctionCallbackBody(function *parser.Function) string {
-	return fmt.Sprintf("%v%v;",
+	return fmt.Sprintf("%v%v%v;",
+
+		converter.CppInputParametersForCallbackBodyPrePack(function),
 
 		func() string {
 			if converter.CppHeaderOutput(function) != parser.VOID {
@@ -176,12 +178,13 @@ func cppFunctionBody(function *parser.Function) string {
 		{
 			return fmt.Sprintf("%v\treturn new %v%v(%v);",
 				func() string {
-					if function.Name == "QCoreApplication" || function.Name == "QGuiApplication" || function.Name == "QApplication" {
-						return `	QList<QByteArray> aList = QByteArray(argv).split('|');
-	char *argvs[argc];
-	static int argcs = argc;
-	for (int i = 0; i < argc; i++)
-		argvs[i] = const_cast<char*>(aList[i].constData());
+					if parser.ClassMap[function.Class()].IsSubClass("QCoreApplication") {
+						return `	static int argcs = argc;
+	static char** argvs = static_cast<char**>(malloc(argcs * sizeof(char*)));
+
+	QList<QByteArray> aList = QByteArray(argv).split('|');
+	for (int i = 0; i < argcs; i++)
+		argvs[i] = (new QByteArray(aList.at(i)))->data();
 
 `
 					}
@@ -198,7 +201,12 @@ func cppFunctionBody(function *parser.Function) string {
 					return ""
 				}(),
 
-				function.Class(),
+				func() string {
+					if c := parser.ClassMap[function.Class()]; c != nil && c.Fullname != "" {
+						return c.Fullname
+					}
+					return function.Class()
+				}(),
 
 				converter.CppInputParameters(function),
 			)
@@ -252,11 +260,12 @@ func cppFunctionBody(function *parser.Function) string {
 			}
 
 			if function.Fullname == "SailfishApp::application" || function.Fullname == "SailfishApp::main" {
-				return fmt.Sprintf(`	QList<QByteArray> aList = QByteArray(argv).split('|');
-	char *argvs[argc];
-	static int argcs = argc;
-	for (int i = 0; i < argc; i++)
-	argvs[i] = const_cast<char*>(aList[i].constData());
+				return fmt.Sprintf(`	static int argcs = argc;
+	static char** argvs = static_cast<char**>(malloc(argcs * sizeof(char*)));
+
+	QList<QByteArray> aList = QByteArray(argv).split('|');
+	for (int i = 0; i < argcs; i++)
+		argvs[i] = (new QByteArray(aList.at(i)))->data();
 
 	return %v(%v);`,
 
@@ -278,10 +287,23 @@ func cppFunctionBody(function *parser.Function) string {
 				converter.CppOutputParameters(function, fmt.Sprintf("%v%v%v(%v)",
 
 					func() string {
+						if function.NonMember {
+							return ""
+						}
 						if function.Static {
 							return fmt.Sprintf("%v::", function.Class())
 						}
-						return fmt.Sprintf("static_cast<%v*>(ptr)->", function.Class())
+						return fmt.Sprintf("static_cast<%v*>(ptr)->",
+							func() string {
+								if c := parser.ClassMap[function.Class()]; c != nil && c.Fullname != "" {
+									return c.Fullname
+								}
+								if strings.HasSuffix(function.Name, "_atList") {
+									return fmt.Sprintf("%v<%v>", function.Container, strings.TrimPrefix(function.Output, "const "))
+								}
+								return function.Class()
+							}(),
+						)
 					}(),
 
 					func() string {
@@ -305,7 +327,12 @@ func cppFunctionBody(function *parser.Function) string {
 					if function.Static {
 						return function.Fullname
 					}
-					return fmt.Sprintf("static_cast<%v*>(ptr)->%v", function.Class(), function.Name)
+					return fmt.Sprintf("static_cast<%v*>(ptr)->%v", func() string {
+						if c := parser.ClassMap[function.Class()]; c != nil && c.Fullname != "" {
+							return c.Fullname
+						}
+						return function.Class()
+					}(), function.Name)
 				}()))
 		}
 
@@ -320,7 +347,12 @@ func cppFunctionBody(function *parser.Function) string {
 					if function.Static {
 						return function.Fullname
 					}
-					return fmt.Sprintf("static_cast<%v*>(ptr)->%v", function.Class(), function.Name)
+					return fmt.Sprintf("static_cast<%v*>(ptr)->%v", func() string {
+						if c := parser.ClassMap[function.Class()]; c != nil && c.Fullname != "" {
+							return c.Fullname
+						}
+						return function.Class()
+					}(), function.Name)
 				}()),
 
 				converter.CppInputParameters(&function),

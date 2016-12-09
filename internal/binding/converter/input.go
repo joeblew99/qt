@@ -32,11 +32,6 @@ func goInput(name, value string, f *parser.Function) string {
 			return fmt.Sprintf("C.CString(%v)", name)
 		}
 
-	case "QByteArray":
-		{
-			return fmt.Sprintf("C.CString(hex.EncodeToString([]byte(%v)))", name)
-		}
-
 	case "QStringList":
 		{
 			return fmt.Sprintf("C.CString(strings.Join(%v, \"|\"))", name)
@@ -113,7 +108,7 @@ func goInput(name, value string, f *parser.Function) string {
 
 	case "T":
 		{
-			switch f.TemplateMode {
+			switch f.TemplateModeJNI {
 			case "Boolean":
 				{
 					return fmt.Sprintf("C.char(int8(qt.GoBoolToInt(%v)))", name)
@@ -196,7 +191,14 @@ func cppInput(name, value string, f *parser.Function) string {
 
 	case "uchar", "quint8":
 		{
-			//TODO: char to uchar
+			if strings.Contains(vOld, "*") {
+				if strings.Contains(vOld, "const") {
+					return fmt.Sprintf("const_cast<const %v*>(static_cast<%v*>(static_cast<void*>(%v)))", value, value, name)
+				}
+				return fmt.Sprintf("static_cast<%v*>(static_cast<void*>(%v))", value, name)
+			}
+
+			return fmt.Sprintf("*static_cast<%v*>(static_cast<void*>(%v))", value, name)
 		}
 
 	case "QString":
@@ -210,19 +212,6 @@ func cppInput(name, value string, f *parser.Function) string {
 			}
 
 			return fmt.Sprintf("QString(%v)", name)
-		}
-
-	case "QByteArray":
-		{
-			if strings.Contains(vOld, "*") {
-				return fmt.Sprintf("new QByteArray(%v)", cppInput(name, "QByteArray", f))
-			}
-
-			if strings.Contains(vOld, "&") && !strings.Contains(vOld, "const") {
-				return fmt.Sprintf("*(%v)", cppInput(name, "QByteArray*", f))
-			}
-
-			return fmt.Sprintf("QByteArray::fromHex(QString(%v).toUtf8())", name)
 		}
 
 	case "QStringList":
@@ -290,7 +279,7 @@ func cppInput(name, value string, f *parser.Function) string {
 
 	case "T":
 		{
-			switch f.TemplateMode {
+			switch f.TemplateModeJNI {
 			case "Boolean", "Int":
 				{
 					return name
@@ -325,6 +314,9 @@ func cppInput(name, value string, f *parser.Function) string {
 	case isEnum(f.Class(), value):
 		{
 			if !strings.Contains(vOld, "*") {
+				if f.Meta == parser.SLOT && f.SignalMode == "" && value == "Qt::Alignment" {
+					return fmt.Sprintf("static_cast<%v>(static_cast<%v>(%v))", value, cppEnum(f, value, false), name)
+				}
 				return fmt.Sprintf("static_cast<%v>(%v)", cppEnum(f, value, false), name)
 			}
 		}
@@ -333,6 +325,10 @@ func cppInput(name, value string, f *parser.Function) string {
 		{
 			if strings.Contains(vOld, "*") && strings.Contains(vOld, "&") {
 				break
+			}
+
+			if parser.ClassMap[value].Fullname != "" {
+				value = parser.ClassMap[value].Fullname
 			}
 
 			if strings.Contains(vOld, "*") {

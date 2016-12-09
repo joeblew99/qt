@@ -3,7 +3,7 @@ language: go
 dist: trusty
 sudo: required
 
-go: 1.7.1
+go: 1.7.3
 
 env: DESKTOP=true ANDROID=true
 
@@ -13,7 +13,10 @@ matrix:
       env: DESKTOP=true ANDROID=false QT_PKG_CONFIG=true PKG_CONFIG_PATH=/opt/qt57/lib/pkgconfig QT_DOC_DIR=/opt/qt57/doc QT_MISC_DIR=/opt/qt57
 
     - os: linux
-      env: DESKTOP=true ANDROID=true QT_WINDOWS_CC=true
+      env: DESKTOP=true ANDROID=true QT_WINDOWS_CC=false QT_MXE_ARCH=386
+
+    - os: linux
+      env: DESKTOP=true ANDROID=true QT_WINDOWS_CC=false QT_MXE_ARCH=amd64
 
     - os: osx
       env: DESKTOP=true ANDROID=false
@@ -22,6 +25,10 @@ matrix:
       env: DESKTOP=false ANDROID=true
 
     - os: osx
+      osx_image: xcode8.1
+      env: DESKTOP=true ANDROID=false QT_HOMEBREW=true
+
+    - os: osx
       osx_image: xcode8
       env: DESKTOP=true ANDROID=false QT_HOMEBREW=true
 
@@ -30,8 +37,8 @@ matrix:
       env: DESKTOP=true ANDROID=false QT_HOMEBREW=true
 
     - os: osx
-      osx_image: xcode7.2
-      env: DESKTOP=true ANDROID=false QT_HOMEBREW=true
+      osx_image: xcode8.1
+      env: DESKTOP=false ANDROID=false IOS=true
 
     - os: osx
       osx_image: xcode8
@@ -42,8 +49,8 @@ matrix:
       env: DESKTOP=false ANDROID=false IOS=true
 
     - os: osx
-      osx_image: xcode7.2
-      env: DESKTOP=false ANDROID=false IOS=true
+      osx_image: xcode8.1
+      env: DESKTOP=false ANDROID=false IOS_SIMULATOR=true
 
     - os: osx
       osx_image: xcode8
@@ -51,10 +58,6 @@ matrix:
 
     - os: osx
       osx_image: xcode7.3
-      env: DESKTOP=false ANDROID=false IOS_SIMULATOR=true
-
-    - os: osx
-      osx_image: xcode7.2
       env: DESKTOP=false ANDROID=false IOS_SIMULATOR=true
 
 install:
@@ -62,8 +65,9 @@ install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then travis_wait 45 $GOPATH/src/github.com/therecipe/qt/internal/ci/darwin.sh; fi
 
 script:
-  - if [[ "$DESKTOP" == "true" ]]; then $GOPATH/src/github.com/therecipe/qt/setup.sh; fi
-  - if [[ "$ANDROID" == "true" ]]; then $GOPATH/src/github.com/therecipe/qt/setup.sh android; fi
-  - if [[ "$IOS" == "true" ]]; then $GOPATH/src/github.com/therecipe/qt/setup.sh ios; fi
-  - if [[ "$IOS_SIMULATOR" == "true" ]]; then $GOPATH/src/github.com/therecipe/qt/setup.sh ios-simulator; fi
-  - if [[ "$QT_WINDOWS_CC" == "true" ]]; then $GOPATH/src/github.com/therecipe/qt/setup.sh windows; fi
+  - go get -v github.com/therecipe/qt/cmd/...
+  - if [[ "$DESKTOP" == "true" ]]; then $GOPATH/bin/qtsetup; fi
+  - if [[ "$ANDROID" == "true" ]]; then $GOPATH/bin/qtsetup android; fi
+  - if [[ "$IOS" == "true" ]]; then $GOPATH/bin/qtsetup ios; fi
+  - if [[ "$IOS_SIMULATOR" == "true" ]]; then $GOPATH/bin/qtsetup ios-simulator; fi
+  - if [[ "$QT_WINDOWS_CC" == "true" ]]; then $GOPATH/bin/qtsetup windows; fi

@@ -11,10 +11,11 @@ import (
 	"github.com/therecipe/qt/widgets"
 )
 
+//go:generate qtmoc
 type DropSiteWindow struct {
 	widgets.QWidget
 
-	_ func(mimeData *core.QMimeData) `slot:updateFormatsTable`
+	_ func(mimeData *core.QMimeData) `slot:"updateFormatsTable"`
 }
 
 func main() {
@@ -62,12 +63,15 @@ func main() {
 
 			case "text/uri-list":
 				{
-					text = mimeData.Text()
+					var urlList = mimeData.Urls()
+					for i := 0; i < len(urlList) && i < 32; i++ {
+						text += urlList[i].ToString(0) + " "
+					}
 				}
 
 			default:
 				{
-					var data = []byte(mimeData.Data(format))
+					var data = []byte(mimeData.Data(format).ConstData())
 					text = fmt.Sprintf("len %v: %v", len(data), data)
 				}
 			}
@@ -117,7 +121,7 @@ func main() {
 type DropArea struct {
 	widgets.QLabel
 
-	_ func(mimeData *core.QMimeData) `signal:changed`
+	_ func(mimeData *core.QMimeData) `signal:"changed"`
 }
 
 func initDropArea() *DropArea {
@@ -148,7 +152,7 @@ func initDropArea() *DropArea {
 		switch {
 		case mimeData.HasImage():
 			{
-				dropArea.SetPixmap(gui.QPixmap_FromImage(gui.NewQImageFromPointer(mimeData.ImageData()), 0))
+				dropArea.SetPixmap(gui.QPixmap_FromImage(gui.NewQImageFromPointer(mimeData.ImageData().ToImage()), 0))
 			}
 
 		case mimeData.HasHtml():
@@ -157,13 +161,19 @@ func initDropArea() *DropArea {
 				dropArea.SetTextFormat(core.Qt__RichText)
 			}
 
-		case mimeData.HasText():
+		case mimeData.HasUrls():
 			{
-				dropArea.SetText(mimeData.Text())
-				dropArea.SetTextFormat(core.Qt__PlainText)
+				var (
+					urlList = mimeData.Urls()
+					text    string
+				)
+				for i := 0; i < len(urlList) && i < 32; i++ {
+					text += urlList[i].Path(0) + "\n"
+				}
+				dropArea.SetText(text)
 			}
 
-		case mimeData.HasUrls():
+		case mimeData.HasText():
 			{
 				dropArea.SetText(mimeData.Text())
 				dropArea.SetTextFormat(core.Qt__PlainText)

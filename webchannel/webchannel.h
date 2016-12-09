@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+struct QtWebChannel_PackedString { char* data; long long len; };
+struct QtWebChannel_PackedList { void* data; long long len; };
 char QWebChannel_BlockUpdates(void* ptr);
 void QWebChannel_SetBlockUpdates(void* ptr, char block);
 void* QWebChannel_NewQWebChannel(void* parent);

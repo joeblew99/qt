@@ -14,6 +14,13 @@ const packageName = "github.com/therecipe/qt"
 
 var goPath *string
 
+func MustGoBin() string {
+	if dir := os.Getenv("GOBIN"); dir != "" {
+		return filepath.Clean(dir)
+	}
+	return filepath.Join(MustGoPath(), "bin")
+}
+
 // MustGoPath is same as GoPath but exits if any error ocurres
 // it also caches the result
 func MustGoPath() string {
@@ -44,12 +51,12 @@ func gopath() (goPath string, err error) {
 			return
 		}
 
-		if strings.HasPrefix(fmt.Sprintf("%v%v", path, string(os.PathSeparator)), runtime.GOROOT()) {
+		if strings.HasPrefix(fmt.Sprintf("%v%v", path, string(os.PathSeparator)), fmt.Sprintf("%v%v", runtime.GOROOT(), string(os.PathSeparator))) {
 			err = fmt.Errorf("GOPATH %q is or contains GOROOT", path)
 			return
 		}
 
-		if strings.HasPrefix(fmt.Sprintf("%v%v", runtime.GOROOT(), string(os.PathSeparator)), path) {
+		if strings.HasPrefix(fmt.Sprintf("%v%v", runtime.GOROOT(), string(os.PathSeparator)), fmt.Sprintf("%v%v", path, string(os.PathSeparator))) {
 			err = fmt.Errorf("GOROOT %q is or contains GOPATH", path)
 			return
 		}

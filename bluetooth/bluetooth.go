@@ -7,7 +7,6 @@ package bluetooth
 //#include "bluetooth.h"
 import "C"
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/therecipe/qt"
 	"github.com/therecipe/qt/core"
@@ -15,6 +14,13 @@ import (
 	"runtime"
 	"unsafe"
 )
+
+func cGoUnpackString(s C.struct_QtBluetooth_PackedString) string {
+	if len := int(s.len); len == -1 {
+		return C.GoString(s.data)
+	}
+	return C.GoStringN(s.data, C.int(s.len))
+}
 
 type QBluetoothAddress struct {
 	ptr unsafe.Pointer
@@ -94,7 +100,7 @@ func (ptr *QBluetoothAddress) IsNull() bool {
 
 func (ptr *QBluetoothAddress) ToString() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothAddress_ToString(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothAddress_ToString(ptr.Pointer()))
 	}
 	return ""
 }
@@ -304,6 +310,19 @@ func NewQBluetoothDeviceDiscoveryAgent2(deviceAdapter QBluetoothAddress_ITF, par
 	return tmpValue
 }
 
+func (ptr *QBluetoothDeviceDiscoveryAgent) DiscoveredDevices() []*QBluetoothDeviceInfo {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothDeviceInfo {
+			var out = make([]*QBluetoothDeviceInfo, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQBluetoothDeviceDiscoveryAgentFromPointer(l.data).discoveredDevices_atList(i)
+			}
+			return out
+		}(C.QBluetoothDeviceDiscoveryAgent_DiscoveredDevices(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QBluetoothDeviceDiscoveryAgent) Error() QBluetoothDeviceDiscoveryAgent__Error {
 	if ptr.Pointer() != nil {
 		return QBluetoothDeviceDiscoveryAgent__Error(C.QBluetoothDeviceDiscoveryAgent_Error(ptr.Pointer()))
@@ -313,7 +332,7 @@ func (ptr *QBluetoothDeviceDiscoveryAgent) Error() QBluetoothDeviceDiscoveryAgen
 
 func (ptr *QBluetoothDeviceDiscoveryAgent) ErrorString() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothDeviceDiscoveryAgent_ErrorString(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothDeviceDiscoveryAgent_ErrorString(ptr.Pointer()))
 	}
 	return ""
 }
@@ -400,6 +419,15 @@ func (ptr *QBluetoothDeviceDiscoveryAgent) DestroyQBluetoothDeviceDiscoveryAgent
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QBluetoothDeviceDiscoveryAgent) discoveredDevices_atList(i int) *QBluetoothDeviceInfo {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothDeviceInfoFromPointer(C.QBluetoothDeviceDiscoveryAgent_discoveredDevices_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothDeviceInfo).DestroyQBluetoothDeviceInfo)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQBluetoothDeviceDiscoveryAgent_TimerEvent
@@ -1034,14 +1062,14 @@ func (ptr *QBluetoothDeviceInfo) MajorDeviceClass() QBluetoothDeviceInfo__MajorD
 
 func (ptr *QBluetoothDeviceInfo) MinorDeviceClass() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothDeviceInfo_MinorDeviceClass(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothDeviceInfo_MinorDeviceClass(ptr.Pointer()))
 	}
 	return ""
 }
 
 func (ptr *QBluetoothDeviceInfo) Name() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothDeviceInfo_Name(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothDeviceInfo_Name(ptr.Pointer()))
 	}
 	return ""
 }
@@ -1096,6 +1124,15 @@ func (ptr *QBluetoothDeviceInfo) DestroyQBluetoothDeviceInfo() {
 		C.QBluetoothDeviceInfo_DestroyQBluetoothDeviceInfo(ptr.Pointer())
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QBluetoothDeviceInfo) serviceUuids_atList(i int) *QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothUuidFromPointer(C.QBluetoothDeviceInfo_serviceUuids_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothUuid).DestroyQBluetoothUuid)
+		return tmpValue
+	}
+	return nil
 }
 
 type QBluetoothHostInfo struct {
@@ -1158,7 +1195,7 @@ func (ptr *QBluetoothHostInfo) Address() *QBluetoothAddress {
 
 func (ptr *QBluetoothHostInfo) Name() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothHostInfo_Name(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothHostInfo_Name(ptr.Pointer()))
 	}
 	return ""
 }
@@ -1368,10 +1405,10 @@ func (ptr *QBluetoothLocalDevice) HostModeStateChanged(state QBluetoothLocalDevi
 }
 
 //export callbackQBluetoothLocalDevice_PairingDisplayConfirmation
-func callbackQBluetoothLocalDevice_PairingDisplayConfirmation(ptr unsafe.Pointer, address unsafe.Pointer, pin *C.char) {
+func callbackQBluetoothLocalDevice_PairingDisplayConfirmation(ptr unsafe.Pointer, address unsafe.Pointer, pin C.struct_QtBluetooth_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QBluetoothLocalDevice::pairingDisplayConfirmation"); signal != nil {
-		signal.(func(*QBluetoothAddress, string))(NewQBluetoothAddressFromPointer(address), C.GoString(pin))
+		signal.(func(*QBluetoothAddress, string))(NewQBluetoothAddressFromPointer(address), cGoUnpackString(pin))
 	}
 
 }
@@ -1399,10 +1436,10 @@ func (ptr *QBluetoothLocalDevice) PairingDisplayConfirmation(address QBluetoothA
 }
 
 //export callbackQBluetoothLocalDevice_PairingDisplayPinCode
-func callbackQBluetoothLocalDevice_PairingDisplayPinCode(ptr unsafe.Pointer, address unsafe.Pointer, pin *C.char) {
+func callbackQBluetoothLocalDevice_PairingDisplayPinCode(ptr unsafe.Pointer, address unsafe.Pointer, pin C.struct_QtBluetooth_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QBluetoothLocalDevice::pairingDisplayPinCode"); signal != nil {
-		signal.(func(*QBluetoothAddress, string))(NewQBluetoothAddressFromPointer(address), C.GoString(pin))
+		signal.(func(*QBluetoothAddress, string))(NewQBluetoothAddressFromPointer(address), cGoUnpackString(pin))
 	}
 
 }
@@ -1530,6 +1567,39 @@ func (ptr *QBluetoothLocalDevice) Address() *QBluetoothAddress {
 	return nil
 }
 
+func QBluetoothLocalDevice_AllDevices() []*QBluetoothHostInfo {
+	return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothHostInfo {
+		var out = make([]*QBluetoothHostInfo, int(l.len))
+		for i := 0; i < int(l.len); i++ {
+			out[i] = NewQBluetoothLocalDeviceFromPointer(l.data).allDevices_atList(i)
+		}
+		return out
+	}(C.QBluetoothLocalDevice_QBluetoothLocalDevice_AllDevices())
+}
+
+func (ptr *QBluetoothLocalDevice) AllDevices() []*QBluetoothHostInfo {
+	return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothHostInfo {
+		var out = make([]*QBluetoothHostInfo, int(l.len))
+		for i := 0; i < int(l.len); i++ {
+			out[i] = NewQBluetoothLocalDeviceFromPointer(l.data).allDevices_atList(i)
+		}
+		return out
+	}(C.QBluetoothLocalDevice_QBluetoothLocalDevice_AllDevices())
+}
+
+func (ptr *QBluetoothLocalDevice) ConnectedDevices() []*QBluetoothAddress {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothAddress {
+			var out = make([]*QBluetoothAddress, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQBluetoothLocalDeviceFromPointer(l.data).connectedDevices_atList(i)
+			}
+			return out
+		}(C.QBluetoothLocalDevice_ConnectedDevices(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QBluetoothLocalDevice) HostMode() QBluetoothLocalDevice__HostMode {
 	if ptr.Pointer() != nil {
 		return QBluetoothLocalDevice__HostMode(C.QBluetoothLocalDevice_HostMode(ptr.Pointer()))
@@ -1539,7 +1609,7 @@ func (ptr *QBluetoothLocalDevice) HostMode() QBluetoothLocalDevice__HostMode {
 
 func (ptr *QBluetoothLocalDevice) Name() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothLocalDevice_Name(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothLocalDevice_Name(ptr.Pointer()))
 	}
 	return ""
 }
@@ -1595,6 +1665,24 @@ func (ptr *QBluetoothLocalDevice) SetHostMode(mode QBluetoothLocalDevice__HostMo
 	if ptr.Pointer() != nil {
 		C.QBluetoothLocalDevice_SetHostMode(ptr.Pointer(), C.longlong(mode))
 	}
+}
+
+func (ptr *QBluetoothLocalDevice) allDevices_atList(i int) *QBluetoothHostInfo {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothHostInfoFromPointer(C.QBluetoothLocalDevice_allDevices_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothHostInfo).DestroyQBluetoothHostInfo)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QBluetoothLocalDevice) connectedDevices_atList(i int) *QBluetoothAddress {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothAddressFromPointer(C.QBluetoothLocalDevice_connectedDevices_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothAddress).DestroyQBluetoothAddress)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQBluetoothLocalDevice_TimerEvent
@@ -2697,6 +2785,19 @@ func (ptr *QBluetoothServiceDiscoveryAgent) Clear() {
 	}
 }
 
+func (ptr *QBluetoothServiceDiscoveryAgent) DiscoveredServices() []*QBluetoothServiceInfo {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothServiceInfo {
+			var out = make([]*QBluetoothServiceInfo, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQBluetoothServiceDiscoveryAgentFromPointer(l.data).discoveredServices_atList(i)
+			}
+			return out
+		}(C.QBluetoothServiceDiscoveryAgent_DiscoveredServices(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QBluetoothServiceDiscoveryAgent) Error() QBluetoothServiceDiscoveryAgent__Error {
 	if ptr.Pointer() != nil {
 		return QBluetoothServiceDiscoveryAgent__Error(C.QBluetoothServiceDiscoveryAgent_Error(ptr.Pointer()))
@@ -2706,7 +2807,7 @@ func (ptr *QBluetoothServiceDiscoveryAgent) Error() QBluetoothServiceDiscoveryAg
 
 func (ptr *QBluetoothServiceDiscoveryAgent) ErrorString() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothServiceDiscoveryAgent_ErrorString(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothServiceDiscoveryAgent_ErrorString(ptr.Pointer()))
 	}
 	return ""
 }
@@ -2796,12 +2897,43 @@ func (ptr *QBluetoothServiceDiscoveryAgent) Stop() {
 	}
 }
 
+func (ptr *QBluetoothServiceDiscoveryAgent) UuidFilter() []*QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothUuid {
+			var out = make([]*QBluetoothUuid, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQBluetoothServiceDiscoveryAgentFromPointer(l.data).uuidFilter_atList(i)
+			}
+			return out
+		}(C.QBluetoothServiceDiscoveryAgent_UuidFilter(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QBluetoothServiceDiscoveryAgent) DestroyQBluetoothServiceDiscoveryAgent() {
 	if ptr.Pointer() != nil {
 		C.QBluetoothServiceDiscoveryAgent_DestroyQBluetoothServiceDiscoveryAgent(ptr.Pointer())
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QBluetoothServiceDiscoveryAgent) discoveredServices_atList(i int) *QBluetoothServiceInfo {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothServiceInfoFromPointer(C.QBluetoothServiceDiscoveryAgent_discoveredServices_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothServiceInfo).DestroyQBluetoothServiceInfo)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QBluetoothServiceDiscoveryAgent) uuidFilter_atList(i int) *QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothUuidFromPointer(C.QBluetoothServiceDiscoveryAgent_uuidFilter_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothUuid).DestroyQBluetoothUuid)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQBluetoothServiceDiscoveryAgent_TimerEvent
@@ -3209,28 +3341,28 @@ func NewQBluetoothServiceInfoFromPointer(ptr unsafe.Pointer) *QBluetoothServiceI
 }
 func (ptr *QBluetoothServiceInfo) ServiceAvailability() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothServiceInfo_ServiceAvailability(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothServiceInfo_ServiceAvailability(ptr.Pointer()))
 	}
 	return ""
 }
 
 func (ptr *QBluetoothServiceInfo) ServiceDescription() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothServiceInfo_ServiceDescription(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothServiceInfo_ServiceDescription(ptr.Pointer()))
 	}
 	return ""
 }
 
 func (ptr *QBluetoothServiceInfo) ServiceName() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothServiceInfo_ServiceName(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothServiceInfo_ServiceName(ptr.Pointer()))
 	}
 	return ""
 }
 
 func (ptr *QBluetoothServiceInfo) ServiceProvider() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothServiceInfo_ServiceProvider(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothServiceInfo_ServiceProvider(ptr.Pointer()))
 	}
 	return ""
 }
@@ -3247,6 +3379,14 @@ func (ptr *QBluetoothServiceInfo) ServiceUuid() *QBluetoothUuid {
 func (ptr *QBluetoothServiceInfo) SetAttribute2(attributeId uint16, value QBluetoothUuid_ITF) {
 	if ptr.Pointer() != nil {
 		C.QBluetoothServiceInfo_SetAttribute2(ptr.Pointer(), C.ushort(attributeId), PointerFromQBluetoothUuid(value))
+	}
+}
+
+func (ptr *QBluetoothServiceInfo) SetServiceAvailability(availability string) {
+	if ptr.Pointer() != nil {
+		var availabilityC = C.CString(availability)
+		defer C.free(unsafe.Pointer(availabilityC))
+		C.QBluetoothServiceInfo_SetServiceAvailability(ptr.Pointer(), availabilityC)
 	}
 }
 
@@ -3365,6 +3505,19 @@ func (ptr *QBluetoothServiceInfo) ServerChannel() int {
 	return 0
 }
 
+func (ptr *QBluetoothServiceInfo) ServiceClassUuids() []*QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothUuid {
+			var out = make([]*QBluetoothUuid, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQBluetoothServiceInfoFromPointer(l.data).serviceClassUuids_atList(i)
+			}
+			return out
+		}(C.QBluetoothServiceInfo_ServiceClassUuids(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QBluetoothServiceInfo) SetAttribute(attributeId uint16, value core.QVariant_ITF) {
 	if ptr.Pointer() != nil {
 		C.QBluetoothServiceInfo_SetAttribute(ptr.Pointer(), C.ushort(attributeId), core.PointerFromQVariant(value))
@@ -3396,6 +3549,15 @@ func (ptr *QBluetoothServiceInfo) DestroyQBluetoothServiceInfo() {
 		C.QBluetoothServiceInfo_DestroyQBluetoothServiceInfo(ptr.Pointer())
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QBluetoothServiceInfo) serviceClassUuids_atList(i int) *QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothUuidFromPointer(C.QBluetoothServiceInfo_serviceClassUuids_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothUuid).DestroyQBluetoothUuid)
+		return tmpValue
+	}
+	return nil
 }
 
 //QBluetoothSocket::SocketError
@@ -3790,7 +3952,7 @@ func (ptr *QBluetoothSocket) Error() QBluetoothSocket__SocketError {
 
 func (ptr *QBluetoothSocket) ErrorString() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothSocket_ErrorString(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothSocket_ErrorString(ptr.Pointer()))
 	}
 	return ""
 }
@@ -3813,7 +3975,7 @@ func (ptr *QBluetoothSocket) LocalAddress() *QBluetoothAddress {
 
 func (ptr *QBluetoothSocket) LocalName() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothSocket_LocalName(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothSocket_LocalName(ptr.Pointer()))
 	}
 	return ""
 }
@@ -3836,7 +3998,7 @@ func (ptr *QBluetoothSocket) PeerAddress() *QBluetoothAddress {
 
 func (ptr *QBluetoothSocket) PeerName() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothSocket_PeerName(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothSocket_PeerName(ptr.Pointer()))
 	}
 	return ""
 }
@@ -3889,13 +4051,13 @@ func (ptr *QBluetoothSocket) State() QBluetoothSocket__SocketState {
 }
 
 //export callbackQBluetoothSocket_WriteData
-func callbackQBluetoothSocket_WriteData(ptr unsafe.Pointer, data *C.char, maxSize C.longlong) C.longlong {
+func callbackQBluetoothSocket_WriteData(ptr unsafe.Pointer, data C.struct_QtBluetooth_PackedString, maxSize C.longlong) C.longlong {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QBluetoothSocket::writeData"); signal != nil {
-		return C.longlong(signal.(func(string, int64) int64)(C.GoString(data), int64(maxSize)))
+		return C.longlong(signal.(func(string, int64) int64)(cGoUnpackString(data), int64(maxSize)))
 	}
 
-	return C.longlong(NewQBluetoothSocketFromPointer(ptr).WriteDataDefault(C.GoString(data), int64(maxSize)))
+	return C.longlong(NewQBluetoothSocketFromPointer(ptr).WriteDataDefault(cGoUnpackString(data), int64(maxSize)))
 }
 
 func (ptr *QBluetoothSocket) ConnectWriteData(f func(data string, maxSize int64) int64) {
@@ -4085,13 +4247,13 @@ func (ptr *QBluetoothSocket) PosDefault() int64 {
 }
 
 //export callbackQBluetoothSocket_ReadLineData
-func callbackQBluetoothSocket_ReadLineData(ptr unsafe.Pointer, data *C.char, maxSize C.longlong) C.longlong {
+func callbackQBluetoothSocket_ReadLineData(ptr unsafe.Pointer, data C.struct_QtBluetooth_PackedString, maxSize C.longlong) C.longlong {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QBluetoothSocket::readLineData"); signal != nil {
-		return C.longlong(signal.(func(string, int64) int64)(C.GoString(data), int64(maxSize)))
+		return C.longlong(signal.(func(string, int64) int64)(cGoUnpackString(data), int64(maxSize)))
 	}
 
-	return C.longlong(NewQBluetoothSocketFromPointer(ptr).ReadLineDataDefault(C.GoString(data), int64(maxSize)))
+	return C.longlong(NewQBluetoothSocketFromPointer(ptr).ReadLineDataDefault(cGoUnpackString(data), int64(maxSize)))
 }
 
 func (ptr *QBluetoothSocket) ConnectReadLineData(f func(data string, maxSize int64) int64) {
@@ -5263,7 +5425,7 @@ func (ptr *QBluetoothTransferReply) DisconnectErrorString() {
 
 func (ptr *QBluetoothTransferReply) ErrorString() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QBluetoothTransferReply_ErrorString(ptr.Pointer()))
+		return cGoUnpackString(C.QBluetoothTransferReply_ErrorString(ptr.Pointer()))
 	}
 	return ""
 }
@@ -6231,19 +6393,19 @@ func NewQBluetoothUuid7(uuid uint) *QBluetoothUuid {
 }
 
 func QBluetoothUuid_CharacteristicToString(uuid QBluetoothUuid__CharacteristicType) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_CharacteristicToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_CharacteristicToString(C.longlong(uuid)))
 }
 
 func (ptr *QBluetoothUuid) CharacteristicToString(uuid QBluetoothUuid__CharacteristicType) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_CharacteristicToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_CharacteristicToString(C.longlong(uuid)))
 }
 
 func QBluetoothUuid_DescriptorToString(uuid QBluetoothUuid__DescriptorType) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_DescriptorToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_DescriptorToString(C.longlong(uuid)))
 }
 
 func (ptr *QBluetoothUuid) DescriptorToString(uuid QBluetoothUuid__DescriptorType) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_DescriptorToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_DescriptorToString(C.longlong(uuid)))
 }
 
 func (ptr *QBluetoothUuid) MinimumSize() int {
@@ -6254,19 +6416,19 @@ func (ptr *QBluetoothUuid) MinimumSize() int {
 }
 
 func QBluetoothUuid_ProtocolToString(uuid QBluetoothUuid__ProtocolUuid) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_ProtocolToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_ProtocolToString(C.longlong(uuid)))
 }
 
 func (ptr *QBluetoothUuid) ProtocolToString(uuid QBluetoothUuid__ProtocolUuid) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_ProtocolToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_ProtocolToString(C.longlong(uuid)))
 }
 
 func QBluetoothUuid_ServiceClassToString(uuid QBluetoothUuid__ServiceClassUuid) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_ServiceClassToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_ServiceClassToString(C.longlong(uuid)))
 }
 
 func (ptr *QBluetoothUuid) ServiceClassToString(uuid QBluetoothUuid__ServiceClassUuid) string {
-	return C.GoString(C.QBluetoothUuid_QBluetoothUuid_ServiceClassToString(C.longlong(uuid)))
+	return cGoUnpackString(C.QBluetoothUuid_QBluetoothUuid_ServiceClassToString(C.longlong(uuid)))
 }
 
 func (ptr *QBluetoothUuid) ToUInt16(ok bool) uint16 {
@@ -6372,16 +6534,18 @@ func (ptr *QLowEnergyAdvertisingData) InvalidManufacturerId() uint16 {
 
 func (ptr *QLowEnergyAdvertisingData) LocalName() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QLowEnergyAdvertisingData_LocalName(ptr.Pointer()))
+		return cGoUnpackString(C.QLowEnergyAdvertisingData_LocalName(ptr.Pointer()))
 	}
 	return ""
 }
 
-func (ptr *QLowEnergyAdvertisingData) ManufacturerData() string {
+func (ptr *QLowEnergyAdvertisingData) ManufacturerData() *core.QByteArray {
 	if ptr.Pointer() != nil {
-		return qt.HexDecodeToString(C.GoString(C.QLowEnergyAdvertisingData_ManufacturerData(ptr.Pointer())))
+		var tmpValue = core.NewQByteArrayFromPointer(C.QLowEnergyAdvertisingData_ManufacturerData(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*core.QByteArray).DestroyQByteArray)
+		return tmpValue
 	}
-	return ""
+	return nil
 }
 
 func (ptr *QLowEnergyAdvertisingData) ManufacturerId() uint16 {
@@ -6391,11 +6555,26 @@ func (ptr *QLowEnergyAdvertisingData) ManufacturerId() uint16 {
 	return 0
 }
 
-func (ptr *QLowEnergyAdvertisingData) RawData() string {
+func (ptr *QLowEnergyAdvertisingData) RawData() *core.QByteArray {
 	if ptr.Pointer() != nil {
-		return qt.HexDecodeToString(C.GoString(C.QLowEnergyAdvertisingData_RawData(ptr.Pointer())))
+		var tmpValue = core.NewQByteArrayFromPointer(C.QLowEnergyAdvertisingData_RawData(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*core.QByteArray).DestroyQByteArray)
+		return tmpValue
 	}
-	return ""
+	return nil
+}
+
+func (ptr *QLowEnergyAdvertisingData) Services() []*QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothUuid {
+			var out = make([]*QBluetoothUuid, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyAdvertisingDataFromPointer(l.data).services_atList(i)
+			}
+			return out
+		}(C.QLowEnergyAdvertisingData_Services(ptr.Pointer()))
+	}
+	return nil
 }
 
 func (ptr *QLowEnergyAdvertisingData) SetDiscoverability(mode QLowEnergyAdvertisingData__Discoverability) {
@@ -6418,19 +6597,15 @@ func (ptr *QLowEnergyAdvertisingData) SetLocalName(name string) {
 	}
 }
 
-func (ptr *QLowEnergyAdvertisingData) SetManufacturerData(id uint16, data string) {
+func (ptr *QLowEnergyAdvertisingData) SetManufacturerData(id uint16, data core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var dataC = C.CString(hex.EncodeToString([]byte(data)))
-		defer C.free(unsafe.Pointer(dataC))
-		C.QLowEnergyAdvertisingData_SetManufacturerData(ptr.Pointer(), C.ushort(id), dataC)
+		C.QLowEnergyAdvertisingData_SetManufacturerData(ptr.Pointer(), C.ushort(id), core.PointerFromQByteArray(data))
 	}
 }
 
-func (ptr *QLowEnergyAdvertisingData) SetRawData(data string) {
+func (ptr *QLowEnergyAdvertisingData) SetRawData(data core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var dataC = C.CString(hex.EncodeToString([]byte(data)))
-		defer C.free(unsafe.Pointer(dataC))
-		C.QLowEnergyAdvertisingData_SetRawData(ptr.Pointer(), dataC)
+		C.QLowEnergyAdvertisingData_SetRawData(ptr.Pointer(), core.PointerFromQByteArray(data))
 	}
 }
 
@@ -6445,6 +6620,15 @@ func (ptr *QLowEnergyAdvertisingData) DestroyQLowEnergyAdvertisingData() {
 		C.QLowEnergyAdvertisingData_DestroyQLowEnergyAdvertisingData(ptr.Pointer())
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QLowEnergyAdvertisingData) services_atList(i int) *QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothUuidFromPointer(C.QLowEnergyAdvertisingData_services_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothUuid).DestroyQBluetoothUuid)
+		return tmpValue
+	}
+	return nil
 }
 
 //QLowEnergyAdvertisingParameters::FilterPolicy
@@ -6641,6 +6825,19 @@ func (ptr *QLowEnergyCharacteristic) Descriptor(uuid QBluetoothUuid_ITF) *QLowEn
 	return nil
 }
 
+func (ptr *QLowEnergyCharacteristic) Descriptors() []*QLowEnergyDescriptor {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QLowEnergyDescriptor {
+			var out = make([]*QLowEnergyDescriptor, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyCharacteristicFromPointer(l.data).descriptors_atList(i)
+			}
+			return out
+		}(C.QLowEnergyCharacteristic_Descriptors(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QLowEnergyCharacteristic) IsValid() bool {
 	if ptr.Pointer() != nil {
 		return C.QLowEnergyCharacteristic_IsValid(ptr.Pointer()) != 0
@@ -6650,7 +6847,7 @@ func (ptr *QLowEnergyCharacteristic) IsValid() bool {
 
 func (ptr *QLowEnergyCharacteristic) Name() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QLowEnergyCharacteristic_Name(ptr.Pointer()))
+		return cGoUnpackString(C.QLowEnergyCharacteristic_Name(ptr.Pointer()))
 	}
 	return ""
 }
@@ -6671,11 +6868,13 @@ func (ptr *QLowEnergyCharacteristic) Uuid() *QBluetoothUuid {
 	return nil
 }
 
-func (ptr *QLowEnergyCharacteristic) Value() string {
+func (ptr *QLowEnergyCharacteristic) Value() *core.QByteArray {
 	if ptr.Pointer() != nil {
-		return qt.HexDecodeToString(C.GoString(C.QLowEnergyCharacteristic_Value(ptr.Pointer())))
+		var tmpValue = core.NewQByteArrayFromPointer(C.QLowEnergyCharacteristic_Value(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*core.QByteArray).DestroyQByteArray)
+		return tmpValue
 	}
-	return ""
+	return nil
 }
 
 func (ptr *QLowEnergyCharacteristic) DestroyQLowEnergyCharacteristic() {
@@ -6683,6 +6882,15 @@ func (ptr *QLowEnergyCharacteristic) DestroyQLowEnergyCharacteristic() {
 		C.QLowEnergyCharacteristic_DestroyQLowEnergyCharacteristic(ptr.Pointer())
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QLowEnergyCharacteristic) descriptors_atList(i int) *QLowEnergyDescriptor {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQLowEnergyDescriptorFromPointer(C.QLowEnergyCharacteristic_descriptors_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QLowEnergyDescriptor).DestroyQLowEnergyDescriptor)
+		return tmpValue
+	}
+	return nil
 }
 
 type QLowEnergyCharacteristicData struct {
@@ -6740,6 +6948,19 @@ func (ptr *QLowEnergyCharacteristicData) AddDescriptor(descriptor QLowEnergyDesc
 	}
 }
 
+func (ptr *QLowEnergyCharacteristicData) Descriptors() []*QLowEnergyDescriptorData {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QLowEnergyDescriptorData {
+			var out = make([]*QLowEnergyDescriptorData, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyCharacteristicDataFromPointer(l.data).descriptors_atList(i)
+			}
+			return out
+		}(C.QLowEnergyCharacteristicData_Descriptors(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QLowEnergyCharacteristicData) IsValid() bool {
 	if ptr.Pointer() != nil {
 		return C.QLowEnergyCharacteristicData_IsValid(ptr.Pointer()) != 0
@@ -6780,11 +7001,9 @@ func (ptr *QLowEnergyCharacteristicData) SetUuid(uuid QBluetoothUuid_ITF) {
 	}
 }
 
-func (ptr *QLowEnergyCharacteristicData) SetValue(value string) {
+func (ptr *QLowEnergyCharacteristicData) SetValue(value core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var valueC = C.CString(hex.EncodeToString([]byte(value)))
-		defer C.free(unsafe.Pointer(valueC))
-		C.QLowEnergyCharacteristicData_SetValue(ptr.Pointer(), valueC)
+		C.QLowEnergyCharacteristicData_SetValue(ptr.Pointer(), core.PointerFromQByteArray(value))
 	}
 }
 
@@ -6809,11 +7028,13 @@ func (ptr *QLowEnergyCharacteristicData) Uuid() *QBluetoothUuid {
 	return nil
 }
 
-func (ptr *QLowEnergyCharacteristicData) Value() string {
+func (ptr *QLowEnergyCharacteristicData) Value() *core.QByteArray {
 	if ptr.Pointer() != nil {
-		return qt.HexDecodeToString(C.GoString(C.QLowEnergyCharacteristicData_Value(ptr.Pointer())))
+		var tmpValue = core.NewQByteArrayFromPointer(C.QLowEnergyCharacteristicData_Value(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*core.QByteArray).DestroyQByteArray)
+		return tmpValue
 	}
-	return ""
+	return nil
 }
 
 func (ptr *QLowEnergyCharacteristicData) DestroyQLowEnergyCharacteristicData() {
@@ -6821,6 +7042,15 @@ func (ptr *QLowEnergyCharacteristicData) DestroyQLowEnergyCharacteristicData() {
 		C.QLowEnergyCharacteristicData_DestroyQLowEnergyCharacteristicData(ptr.Pointer())
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QLowEnergyCharacteristicData) descriptors_atList(i int) *QLowEnergyDescriptorData {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQLowEnergyDescriptorDataFromPointer(C.QLowEnergyCharacteristicData_descriptors_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QLowEnergyDescriptorData).DestroyQLowEnergyDescriptorData)
+		return tmpValue
+	}
+	return nil
 }
 
 type QLowEnergyConnectionParameters struct {
@@ -7296,7 +7526,7 @@ func (ptr *QLowEnergyController) Error() QLowEnergyController__Error {
 
 func (ptr *QLowEnergyController) ErrorString() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QLowEnergyController_ErrorString(ptr.Pointer()))
+		return cGoUnpackString(C.QLowEnergyController_ErrorString(ptr.Pointer()))
 	}
 	return ""
 }
@@ -7328,7 +7558,7 @@ func (ptr *QLowEnergyController) RemoteAddressType() QLowEnergyController__Remot
 
 func (ptr *QLowEnergyController) RemoteName() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QLowEnergyController_RemoteName(ptr.Pointer()))
+		return cGoUnpackString(C.QLowEnergyController_RemoteName(ptr.Pointer()))
 	}
 	return ""
 }
@@ -7344,6 +7574,19 @@ func (ptr *QLowEnergyController) Role() QLowEnergyController__Role {
 		return QLowEnergyController__Role(C.QLowEnergyController_Role(ptr.Pointer()))
 	}
 	return 0
+}
+
+func (ptr *QLowEnergyController) Services() []*QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothUuid {
+			var out = make([]*QBluetoothUuid, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyControllerFromPointer(l.data).services_atList(i)
+			}
+			return out
+		}(C.QLowEnergyController_Services(ptr.Pointer()))
+	}
+	return nil
 }
 
 func (ptr *QLowEnergyController) SetRemoteAddressType(ty QLowEnergyController__RemoteAddressType) {
@@ -7377,6 +7620,15 @@ func (ptr *QLowEnergyController) DestroyQLowEnergyController() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QLowEnergyController) services_atList(i int) *QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothUuidFromPointer(C.QLowEnergyController_services_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothUuid).DestroyQBluetoothUuid)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQLowEnergyController_TimerEvent
@@ -7770,7 +8022,7 @@ func (ptr *QLowEnergyDescriptor) IsValid() bool {
 
 func (ptr *QLowEnergyDescriptor) Name() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QLowEnergyDescriptor_Name(ptr.Pointer()))
+		return cGoUnpackString(C.QLowEnergyDescriptor_Name(ptr.Pointer()))
 	}
 	return ""
 }
@@ -7791,11 +8043,13 @@ func (ptr *QLowEnergyDescriptor) Uuid() *QBluetoothUuid {
 	return nil
 }
 
-func (ptr *QLowEnergyDescriptor) Value() string {
+func (ptr *QLowEnergyDescriptor) Value() *core.QByteArray {
 	if ptr.Pointer() != nil {
-		return qt.HexDecodeToString(C.GoString(C.QLowEnergyDescriptor_Value(ptr.Pointer())))
+		var tmpValue = core.NewQByteArrayFromPointer(C.QLowEnergyDescriptor_Value(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*core.QByteArray).DestroyQByteArray)
+		return tmpValue
 	}
-	return ""
+	return nil
 }
 
 func (ptr *QLowEnergyDescriptor) DestroyQLowEnergyDescriptor() {
@@ -7848,10 +8102,8 @@ func NewQLowEnergyDescriptorData() *QLowEnergyDescriptorData {
 	return tmpValue
 }
 
-func NewQLowEnergyDescriptorData2(uuid QBluetoothUuid_ITF, value string) *QLowEnergyDescriptorData {
-	var valueC = C.CString(hex.EncodeToString([]byte(value)))
-	defer C.free(unsafe.Pointer(valueC))
-	var tmpValue = NewQLowEnergyDescriptorDataFromPointer(C.QLowEnergyDescriptorData_NewQLowEnergyDescriptorData2(PointerFromQBluetoothUuid(uuid), valueC))
+func NewQLowEnergyDescriptorData2(uuid QBluetoothUuid_ITF, value core.QByteArray_ITF) *QLowEnergyDescriptorData {
+	var tmpValue = NewQLowEnergyDescriptorDataFromPointer(C.QLowEnergyDescriptorData_NewQLowEnergyDescriptorData2(PointerFromQBluetoothUuid(uuid), core.PointerFromQByteArray(value)))
 	runtime.SetFinalizer(tmpValue, (*QLowEnergyDescriptorData).DestroyQLowEnergyDescriptorData)
 	return tmpValue
 }
@@ -7889,11 +8141,9 @@ func (ptr *QLowEnergyDescriptorData) SetUuid(uuid QBluetoothUuid_ITF) {
 	}
 }
 
-func (ptr *QLowEnergyDescriptorData) SetValue(value string) {
+func (ptr *QLowEnergyDescriptorData) SetValue(value core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var valueC = C.CString(hex.EncodeToString([]byte(value)))
-		defer C.free(unsafe.Pointer(valueC))
-		C.QLowEnergyDescriptorData_SetValue(ptr.Pointer(), valueC)
+		C.QLowEnergyDescriptorData_SetValue(ptr.Pointer(), core.PointerFromQByteArray(value))
 	}
 }
 
@@ -7912,11 +8162,13 @@ func (ptr *QLowEnergyDescriptorData) Uuid() *QBluetoothUuid {
 	return nil
 }
 
-func (ptr *QLowEnergyDescriptorData) Value() string {
+func (ptr *QLowEnergyDescriptorData) Value() *core.QByteArray {
 	if ptr.Pointer() != nil {
-		return qt.HexDecodeToString(C.GoString(C.QLowEnergyDescriptorData_Value(ptr.Pointer())))
+		var tmpValue = core.NewQByteArrayFromPointer(C.QLowEnergyDescriptorData_Value(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*core.QByteArray).DestroyQByteArray)
+		return tmpValue
 	}
-	return ""
+	return nil
 }
 
 func (ptr *QLowEnergyDescriptorData) DestroyQLowEnergyDescriptorData() {
@@ -8007,15 +8259,15 @@ func NewQLowEnergyServiceFromPointer(ptr unsafe.Pointer) *QLowEnergyService {
 }
 
 //export callbackQLowEnergyService_CharacteristicChanged
-func callbackQLowEnergyService_CharacteristicChanged(ptr unsafe.Pointer, characteristic unsafe.Pointer, newValue *C.char) {
+func callbackQLowEnergyService_CharacteristicChanged(ptr unsafe.Pointer, characteristic unsafe.Pointer, newValue unsafe.Pointer) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QLowEnergyService::characteristicChanged"); signal != nil {
-		signal.(func(*QLowEnergyCharacteristic, string))(NewQLowEnergyCharacteristicFromPointer(characteristic), qt.HexDecodeToString(C.GoString(newValue)))
+		signal.(func(*QLowEnergyCharacteristic, *core.QByteArray))(NewQLowEnergyCharacteristicFromPointer(characteristic), core.NewQByteArrayFromPointer(newValue))
 	}
 
 }
 
-func (ptr *QLowEnergyService) ConnectCharacteristicChanged(f func(characteristic *QLowEnergyCharacteristic, newValue string)) {
+func (ptr *QLowEnergyService) ConnectCharacteristicChanged(f func(characteristic *QLowEnergyCharacteristic, newValue *core.QByteArray)) {
 	if ptr.Pointer() != nil {
 		C.QLowEnergyService_ConnectCharacteristicChanged(ptr.Pointer())
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QLowEnergyService::characteristicChanged", f)
@@ -8029,24 +8281,22 @@ func (ptr *QLowEnergyService) DisconnectCharacteristicChanged() {
 	}
 }
 
-func (ptr *QLowEnergyService) CharacteristicChanged(characteristic QLowEnergyCharacteristic_ITF, newValue string) {
+func (ptr *QLowEnergyService) CharacteristicChanged(characteristic QLowEnergyCharacteristic_ITF, newValue core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var newValueC = C.CString(hex.EncodeToString([]byte(newValue)))
-		defer C.free(unsafe.Pointer(newValueC))
-		C.QLowEnergyService_CharacteristicChanged(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), newValueC)
+		C.QLowEnergyService_CharacteristicChanged(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), core.PointerFromQByteArray(newValue))
 	}
 }
 
 //export callbackQLowEnergyService_CharacteristicRead
-func callbackQLowEnergyService_CharacteristicRead(ptr unsafe.Pointer, characteristic unsafe.Pointer, value *C.char) {
+func callbackQLowEnergyService_CharacteristicRead(ptr unsafe.Pointer, characteristic unsafe.Pointer, value unsafe.Pointer) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QLowEnergyService::characteristicRead"); signal != nil {
-		signal.(func(*QLowEnergyCharacteristic, string))(NewQLowEnergyCharacteristicFromPointer(characteristic), qt.HexDecodeToString(C.GoString(value)))
+		signal.(func(*QLowEnergyCharacteristic, *core.QByteArray))(NewQLowEnergyCharacteristicFromPointer(characteristic), core.NewQByteArrayFromPointer(value))
 	}
 
 }
 
-func (ptr *QLowEnergyService) ConnectCharacteristicRead(f func(characteristic *QLowEnergyCharacteristic, value string)) {
+func (ptr *QLowEnergyService) ConnectCharacteristicRead(f func(characteristic *QLowEnergyCharacteristic, value *core.QByteArray)) {
 	if ptr.Pointer() != nil {
 		C.QLowEnergyService_ConnectCharacteristicRead(ptr.Pointer())
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QLowEnergyService::characteristicRead", f)
@@ -8060,24 +8310,22 @@ func (ptr *QLowEnergyService) DisconnectCharacteristicRead() {
 	}
 }
 
-func (ptr *QLowEnergyService) CharacteristicRead(characteristic QLowEnergyCharacteristic_ITF, value string) {
+func (ptr *QLowEnergyService) CharacteristicRead(characteristic QLowEnergyCharacteristic_ITF, value core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var valueC = C.CString(hex.EncodeToString([]byte(value)))
-		defer C.free(unsafe.Pointer(valueC))
-		C.QLowEnergyService_CharacteristicRead(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), valueC)
+		C.QLowEnergyService_CharacteristicRead(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), core.PointerFromQByteArray(value))
 	}
 }
 
 //export callbackQLowEnergyService_CharacteristicWritten
-func callbackQLowEnergyService_CharacteristicWritten(ptr unsafe.Pointer, characteristic unsafe.Pointer, newValue *C.char) {
+func callbackQLowEnergyService_CharacteristicWritten(ptr unsafe.Pointer, characteristic unsafe.Pointer, newValue unsafe.Pointer) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QLowEnergyService::characteristicWritten"); signal != nil {
-		signal.(func(*QLowEnergyCharacteristic, string))(NewQLowEnergyCharacteristicFromPointer(characteristic), qt.HexDecodeToString(C.GoString(newValue)))
+		signal.(func(*QLowEnergyCharacteristic, *core.QByteArray))(NewQLowEnergyCharacteristicFromPointer(characteristic), core.NewQByteArrayFromPointer(newValue))
 	}
 
 }
 
-func (ptr *QLowEnergyService) ConnectCharacteristicWritten(f func(characteristic *QLowEnergyCharacteristic, newValue string)) {
+func (ptr *QLowEnergyService) ConnectCharacteristicWritten(f func(characteristic *QLowEnergyCharacteristic, newValue *core.QByteArray)) {
 	if ptr.Pointer() != nil {
 		C.QLowEnergyService_ConnectCharacteristicWritten(ptr.Pointer())
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QLowEnergyService::characteristicWritten", f)
@@ -8091,24 +8339,22 @@ func (ptr *QLowEnergyService) DisconnectCharacteristicWritten() {
 	}
 }
 
-func (ptr *QLowEnergyService) CharacteristicWritten(characteristic QLowEnergyCharacteristic_ITF, newValue string) {
+func (ptr *QLowEnergyService) CharacteristicWritten(characteristic QLowEnergyCharacteristic_ITF, newValue core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var newValueC = C.CString(hex.EncodeToString([]byte(newValue)))
-		defer C.free(unsafe.Pointer(newValueC))
-		C.QLowEnergyService_CharacteristicWritten(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), newValueC)
+		C.QLowEnergyService_CharacteristicWritten(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), core.PointerFromQByteArray(newValue))
 	}
 }
 
 //export callbackQLowEnergyService_DescriptorRead
-func callbackQLowEnergyService_DescriptorRead(ptr unsafe.Pointer, descriptor unsafe.Pointer, value *C.char) {
+func callbackQLowEnergyService_DescriptorRead(ptr unsafe.Pointer, descriptor unsafe.Pointer, value unsafe.Pointer) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QLowEnergyService::descriptorRead"); signal != nil {
-		signal.(func(*QLowEnergyDescriptor, string))(NewQLowEnergyDescriptorFromPointer(descriptor), qt.HexDecodeToString(C.GoString(value)))
+		signal.(func(*QLowEnergyDescriptor, *core.QByteArray))(NewQLowEnergyDescriptorFromPointer(descriptor), core.NewQByteArrayFromPointer(value))
 	}
 
 }
 
-func (ptr *QLowEnergyService) ConnectDescriptorRead(f func(descriptor *QLowEnergyDescriptor, value string)) {
+func (ptr *QLowEnergyService) ConnectDescriptorRead(f func(descriptor *QLowEnergyDescriptor, value *core.QByteArray)) {
 	if ptr.Pointer() != nil {
 		C.QLowEnergyService_ConnectDescriptorRead(ptr.Pointer())
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QLowEnergyService::descriptorRead", f)
@@ -8122,24 +8368,22 @@ func (ptr *QLowEnergyService) DisconnectDescriptorRead() {
 	}
 }
 
-func (ptr *QLowEnergyService) DescriptorRead(descriptor QLowEnergyDescriptor_ITF, value string) {
+func (ptr *QLowEnergyService) DescriptorRead(descriptor QLowEnergyDescriptor_ITF, value core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var valueC = C.CString(hex.EncodeToString([]byte(value)))
-		defer C.free(unsafe.Pointer(valueC))
-		C.QLowEnergyService_DescriptorRead(ptr.Pointer(), PointerFromQLowEnergyDescriptor(descriptor), valueC)
+		C.QLowEnergyService_DescriptorRead(ptr.Pointer(), PointerFromQLowEnergyDescriptor(descriptor), core.PointerFromQByteArray(value))
 	}
 }
 
 //export callbackQLowEnergyService_DescriptorWritten
-func callbackQLowEnergyService_DescriptorWritten(ptr unsafe.Pointer, descriptor unsafe.Pointer, newValue *C.char) {
+func callbackQLowEnergyService_DescriptorWritten(ptr unsafe.Pointer, descriptor unsafe.Pointer, newValue unsafe.Pointer) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QLowEnergyService::descriptorWritten"); signal != nil {
-		signal.(func(*QLowEnergyDescriptor, string))(NewQLowEnergyDescriptorFromPointer(descriptor), qt.HexDecodeToString(C.GoString(newValue)))
+		signal.(func(*QLowEnergyDescriptor, *core.QByteArray))(NewQLowEnergyDescriptorFromPointer(descriptor), core.NewQByteArrayFromPointer(newValue))
 	}
 
 }
 
-func (ptr *QLowEnergyService) ConnectDescriptorWritten(f func(descriptor *QLowEnergyDescriptor, newValue string)) {
+func (ptr *QLowEnergyService) ConnectDescriptorWritten(f func(descriptor *QLowEnergyDescriptor, newValue *core.QByteArray)) {
 	if ptr.Pointer() != nil {
 		C.QLowEnergyService_ConnectDescriptorWritten(ptr.Pointer())
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QLowEnergyService::descriptorWritten", f)
@@ -8153,11 +8397,9 @@ func (ptr *QLowEnergyService) DisconnectDescriptorWritten() {
 	}
 }
 
-func (ptr *QLowEnergyService) DescriptorWritten(descriptor QLowEnergyDescriptor_ITF, newValue string) {
+func (ptr *QLowEnergyService) DescriptorWritten(descriptor QLowEnergyDescriptor_ITF, newValue core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var newValueC = C.CString(hex.EncodeToString([]byte(newValue)))
-		defer C.free(unsafe.Pointer(newValueC))
-		C.QLowEnergyService_DescriptorWritten(ptr.Pointer(), PointerFromQLowEnergyDescriptor(descriptor), newValueC)
+		C.QLowEnergyService_DescriptorWritten(ptr.Pointer(), PointerFromQLowEnergyDescriptor(descriptor), core.PointerFromQByteArray(newValue))
 	}
 }
 
@@ -8228,6 +8470,19 @@ func (ptr *QLowEnergyService) Characteristic(uuid QBluetoothUuid_ITF) *QLowEnerg
 	return nil
 }
 
+func (ptr *QLowEnergyService) Characteristics() []*QLowEnergyCharacteristic {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QLowEnergyCharacteristic {
+			var out = make([]*QLowEnergyCharacteristic, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyServiceFromPointer(l.data).characteristics_atList(i)
+			}
+			return out
+		}(C.QLowEnergyService_Characteristics(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QLowEnergyService) Contains(characteristic QLowEnergyCharacteristic_ITF) bool {
 	if ptr.Pointer() != nil {
 		return C.QLowEnergyService_Contains(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic)) != 0
@@ -8255,6 +8510,19 @@ func (ptr *QLowEnergyService) Error() QLowEnergyService__ServiceError {
 	return 0
 }
 
+func (ptr *QLowEnergyService) IncludedServices() []*QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QBluetoothUuid {
+			var out = make([]*QBluetoothUuid, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyServiceFromPointer(l.data).includedServices_atList(i)
+			}
+			return out
+		}(C.QLowEnergyService_IncludedServices(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QLowEnergyService) ReadCharacteristic(characteristic QLowEnergyCharacteristic_ITF) {
 	if ptr.Pointer() != nil {
 		C.QLowEnergyService_ReadCharacteristic(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic))
@@ -8269,7 +8537,7 @@ func (ptr *QLowEnergyService) ReadDescriptor(descriptor QLowEnergyDescriptor_ITF
 
 func (ptr *QLowEnergyService) ServiceName() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QLowEnergyService_ServiceName(ptr.Pointer()))
+		return cGoUnpackString(C.QLowEnergyService_ServiceName(ptr.Pointer()))
 	}
 	return ""
 }
@@ -8297,19 +8565,15 @@ func (ptr *QLowEnergyService) Type() QLowEnergyService__ServiceType {
 	return 0
 }
 
-func (ptr *QLowEnergyService) WriteCharacteristic(characteristic QLowEnergyCharacteristic_ITF, newValue string, mode QLowEnergyService__WriteMode) {
+func (ptr *QLowEnergyService) WriteCharacteristic(characteristic QLowEnergyCharacteristic_ITF, newValue core.QByteArray_ITF, mode QLowEnergyService__WriteMode) {
 	if ptr.Pointer() != nil {
-		var newValueC = C.CString(hex.EncodeToString([]byte(newValue)))
-		defer C.free(unsafe.Pointer(newValueC))
-		C.QLowEnergyService_WriteCharacteristic(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), newValueC, C.longlong(mode))
+		C.QLowEnergyService_WriteCharacteristic(ptr.Pointer(), PointerFromQLowEnergyCharacteristic(characteristic), core.PointerFromQByteArray(newValue), C.longlong(mode))
 	}
 }
 
-func (ptr *QLowEnergyService) WriteDescriptor(descriptor QLowEnergyDescriptor_ITF, newValue string) {
+func (ptr *QLowEnergyService) WriteDescriptor(descriptor QLowEnergyDescriptor_ITF, newValue core.QByteArray_ITF) {
 	if ptr.Pointer() != nil {
-		var newValueC = C.CString(hex.EncodeToString([]byte(newValue)))
-		defer C.free(unsafe.Pointer(newValueC))
-		C.QLowEnergyService_WriteDescriptor(ptr.Pointer(), PointerFromQLowEnergyDescriptor(descriptor), newValueC)
+		C.QLowEnergyService_WriteDescriptor(ptr.Pointer(), PointerFromQLowEnergyDescriptor(descriptor), core.PointerFromQByteArray(newValue))
 	}
 }
 
@@ -8319,6 +8583,24 @@ func (ptr *QLowEnergyService) DestroyQLowEnergyService() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QLowEnergyService) characteristics_atList(i int) *QLowEnergyCharacteristic {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQLowEnergyCharacteristicFromPointer(C.QLowEnergyService_characteristics_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QLowEnergyCharacteristic).DestroyQLowEnergyCharacteristic)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QLowEnergyService) includedServices_atList(i int) *QBluetoothUuid {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQBluetoothUuidFromPointer(C.QLowEnergyService_includedServices_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QBluetoothUuid).DestroyQBluetoothUuid)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQLowEnergyService_TimerEvent
@@ -8723,6 +9005,32 @@ func (ptr *QLowEnergyServiceData) AddIncludedService(service QLowEnergyService_I
 	}
 }
 
+func (ptr *QLowEnergyServiceData) Characteristics() []*QLowEnergyCharacteristicData {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QLowEnergyCharacteristicData {
+			var out = make([]*QLowEnergyCharacteristicData, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyServiceDataFromPointer(l.data).characteristics_atList(i)
+			}
+			return out
+		}(C.QLowEnergyServiceData_Characteristics(ptr.Pointer()))
+	}
+	return nil
+}
+
+func (ptr *QLowEnergyServiceData) IncludedServices() []*QLowEnergyService {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtBluetooth_PackedList) []*QLowEnergyService {
+			var out = make([]*QLowEnergyService, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQLowEnergyServiceDataFromPointer(l.data).includedServices_atList(i)
+			}
+			return out
+		}(C.QLowEnergyServiceData_IncludedServices(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QLowEnergyServiceData) IsValid() bool {
 	if ptr.Pointer() != nil {
 		return C.QLowEnergyServiceData_IsValid(ptr.Pointer()) != 0
@@ -8769,4 +9077,24 @@ func (ptr *QLowEnergyServiceData) DestroyQLowEnergyServiceData() {
 		C.QLowEnergyServiceData_DestroyQLowEnergyServiceData(ptr.Pointer())
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QLowEnergyServiceData) characteristics_atList(i int) *QLowEnergyCharacteristicData {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQLowEnergyCharacteristicDataFromPointer(C.QLowEnergyServiceData_characteristics_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*QLowEnergyCharacteristicData).DestroyQLowEnergyCharacteristicData)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QLowEnergyServiceData) includedServices_atList(i int) *QLowEnergyService {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQLowEnergyServiceFromPointer(C.QLowEnergyServiceData_includedServices_atList(ptr.Pointer(), C.int(int32(i))))
+		if !qt.ExistsSignal(fmt.Sprint(tmpValue.Pointer()), "QObject::destroyed") {
+			tmpValue.ConnectDestroyed(func(*core.QObject) { tmpValue.SetPointer(nil) })
+		}
+		return tmpValue
+	}
+	return nil
 }

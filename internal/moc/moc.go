@@ -1,7 +1,7 @@
-package main
+package moc
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	goparser "go/parser"
@@ -13,282 +13,396 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/therecipe/qt/internal/binding/parser"
 	"github.com/therecipe/qt/internal/binding/templater"
 	"github.com/therecipe/qt/internal/utils"
 )
 
 func init() {
-	templater.UsedFromMoc = true
+	// TODO: dangerous
+	templater.Moc = true
 }
 
-var (
-	modulesInited bool
-	tmpFiles      = make([]string, 0)
-)
+type appMoc struct {
+	appPath string
+	module  *parser.Module
+}
 
-func main() {
+func newAppMoc(appPath string) *appMoc {
+	return &appMoc{
+		appPath: appPath,
+		module: &parser.Module{
+			Project: parser.MOC,
+			Namespace: &parser.Namespace{
+				Classes: make([]*parser.Class, 0),
+			},
+		},
+	}
+}
+
+func cacheModules() (err error) {
+
+	if len(parser.ClassMap) != 0 {
+		utils.Log.WithField("func", "cacheModules").Debug("modules already cached, skipping caching of modules")
+		return
+	}
+
+	for _, module := range templater.GetLibs() {
+		if _, err = parser.GetModule(module); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// return how many moc classes are in module, delete those that are not
+func (m *appMoc) cleanupClassMap() (size int) {
+	for _, class := range m.module.Namespace.Classes {
+		if !class.IsQObjectSubClass() {
+			delete(parser.ClassMap, class.Name)
+		} else {
+			size++
+		}
+	}
+	return
+}
+
+func (m *appMoc) parseGo(path string) error {
+	src, errRead := ioutil.ReadFile(path)
+	if errRead != nil {
+		return errRead
+	}
+
+	file, errParse := goparser.ParseFile(token.NewFileSet(), path, nil, 0)
+	if errParse != nil {
+		return errParse
+	}
+
+	templater.MocModule = file.Name.String()
+
+	for _, d := range file.Decls {
+		typeDecl, ok := d.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+
+		for _, s := range typeDecl.Specs {
+			typeSpec, ok := s.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+			structDecl, ok := typeSpec.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+
+			class := &parser.Class{
+				Access:    "public",
+				Module:    parser.MOC,
+				Name:      typeSpec.Name.String(),
+				Status:    "public",
+				Functions: make([]*parser.Function, 0),
+			}
+
+			for _, field := range structDecl.Fields.List {
+				//collect possible base classes
+				var fieldValue = string(src[field.Pos()-1 : field.End()-1])
+				if fieldValue != "" && !strings.Contains(fieldValue, " ") && !strings.HasPrefix(fieldValue, "*") {
+					if strings.Contains(fieldValue, ".") {
+						fieldValue = strings.Split(fieldValue, ".")[1]
+					}
+					class.Bases += fmt.Sprintf("%v,", fieldValue)
+				}
+
+				for range field.Names {
+					if field.Tag == nil {
+						continue
+					}
+					var meta string
+					tag := strings.Replace(strings.Replace(field.Tag.Value, "\"", "", -1), "`", "", -1)
+
+					switch {
+					case strings.HasPrefix(tag, "signal:"):
+						meta = parser.SIGNAL
+					case strings.HasPrefix(tag, "slot:"):
+						meta = parser.SLOT
+					default:
+						// only handle signal and slot
+						continue
+					}
+
+					var (
+						typ = string(src[field.Type.Pos()-1 : field.Type.End()-1])
+						f   = &parser.Function{
+							Access:     "public",
+							Fullname:   fmt.Sprintf("%v::%v", class.Name, strings.Split(tag, ":")[1]),
+							Meta:       meta,
+							Name:       strings.Split(tag, ":")[1],
+							Status:     "public",
+							Virtual:    "non",
+							Signature:  "()",
+							Parameters: getParameters(typ),
+							Output: func() string {
+								if meta == parser.SLOT {
+									var out = strings.TrimSpace(strings.Split(typ, ")")[1])
+									if strings.Contains(out, "(") {
+										return getParameters(out + ")")[0].Value
+									}
+									return out
+								}
+								return "void"
+							}(),
+						}
+					)
+					if len(f.Parameters[0].Value) == 0 {
+						f.Parameters = make([]*parser.Parameter, 0)
+					}
+					class.Functions = append(class.Functions, f)
+
+				}
+			}
+			m.module.Namespace.Classes = append(m.module.Namespace.Classes, class)
+		}
+	}
+	return nil
+}
+
+func CleanPath(path string) (err error) {
 	var (
-		appPath string
-		cleanup bool
+		tmpFileNames = []string{
+			"moc_cleanup.json",
+			"moc.h", "moc.go", "moc.cpp", "moc_moc.h",
+			"moc_cgo_desktop_darwin_amd64.go", "moc_cgo_desktop_windows_386.go", "moc_cgo_desktop_windows_amd64.go", "moc_cgo_desktop_linux_amd64.go",
+			"moc_cgo_android_linux_arm.go",
+			"moc_cgo_ios_simulator_darwin_amd64.go", "moc_cgo_ios_simulator_darwin_386.go", "moc_cgo_ios_darwin_arm64.go", "moc_cgo_ios_darwin_arm.go",
+			"moc_cgo_sailfish_emulator_linux_386.go", "moc_cgo_sailfish_linux_arm.go",
+			"moc_cgo_rpi1_linux_arm.go", "moc_cgo_rpi2_linux_arm.go", "moc_cgo_rpi3_linux_arm.go",
+		}
+
+		fields = logrus.Fields{"func": "CleanPath", "path": path}
 	)
 
-	switch len(os.Args) {
-	case 1:
-		{
-			appPath, _ = os.Getwd()
-		}
-
-	case 2, 3:
-		{
-			appPath = os.Args[1]
-			cleanup = len(os.Args) == 3
-		}
+	pathInfo, err := os.Stat(path)
+	if err != nil {
+		utils.Log.WithFields(fields).Error("Invalid path")
+		return err
+	}
+	if !pathInfo.IsDir() {
+		utils.Log.WithFields(fields).Error("Path is not a directory")
+		return errors.New("Path is not a directory")
 	}
 
-	if !filepath.IsAbs(appPath) {
-		appPath = utils.GetAbsPath(appPath)
-	}
+	err = filepath.Walk(
+		path,
 
-	var walkFunc = func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() && !isBlacklisted(appPath, filepath.Join(path, info.Name())) {
-			moc(path)
-
-			for className, class := range parser.ClassMap {
-				if class.Module == parser.MOC {
-					delete(parser.ClassMap, className)
+		utils.WalkOnlyFile(
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
 				}
-			}
-		}
 
-		return nil
+				for _, tFile := range tmpFileNames {
+					if tFile == info.Name() {
+						utils.Log.WithFields(fields).WithField("filename", tFile).Debug("Remove file")
+						return os.RemoveAll(path)
+					}
+				}
+
+				return nil
+			},
+		),
+	)
+
+	if err != nil {
+		utils.Log.WithFields(fields).WithError(err).Error("Failed to cleanup temp moc files")
 	}
 
-	filepath.Walk(appPath, walkFunc)
-
-	if cleanup {
-		var b, err = json.Marshal(tmpFiles)
-		if err == nil {
-			utils.SaveBytes(filepath.Join(appPath, "cleanup.json"), b)
-		}
-	}
+	return
 }
 
-func moc(appPath string) {
-
-	for _, name := range []string{"moc.h", "moc.go", "moc.cpp", "moc_moc.h",
-		"moc_cgo_desktop_darwin_amd64.go", "moc_cgo_desktop_windows_386.go", "moc_cgo_desktop_linux_amd64.go",
-		"moc_cgo_android_linux_arm.go",
-		"moc_cgo_ios_simulator_darwin_amd64.go", "moc_cgo_ios_simulator_darwin_386.go", "moc_cgo_ios_darwin_arm64.go", "moc_cgo_ios_darwin_arm.go",
-		"moc_cgo_sailfish_emulator_linux_386.go", "moc_cgo_sailfish_linux_arm.go",
-		"moc_cgo_rpi1_linux_arm.go", "moc_cgo_rpi2_linux_arm.go", "moc_cgo_rpi3_linux_arm.go"} {
-		if utils.Exists(filepath.Join(appPath, name)) {
-			utils.RemoveAll(filepath.Join(appPath, name))
+func (m *appMoc) runQtMoc() (err error) {
+	var (
+		mocPath string
+		output  []byte
+		info    os.FileInfo
+	)
+	switch runtime.GOOS {
+	case "darwin":
+		mocPath = filepath.Join(utils.QT_DARWIN_DIR(), "bin", "moc")
+	case "linux":
+		if utils.UsePkgConfig() {
+			mocPath = filepath.Join(strings.TrimSpace(utils.RunCmd(exec.Command("pkg-config", "--variable=host_bins", "Qt5Core"), "moc.LinuxPkgConfig_hostBins")), "moc")
+		} else {
+			mocPath = filepath.Join(utils.QT_DIR(), "5.7", "gcc_64", "bin", "moc")
 		}
-		tmpFiles = append(tmpFiles, filepath.Join(appPath, name))
+	case "windows":
+		if utils.UseMsys2() {
+			mocPath = filepath.Join(utils.QT_MSYS2_DIR(), "bin", "moc")
+		} else {
+			mocPath = filepath.Join(utils.QT_DIR(), "5.7", "mingw53_32", "bin", "moc")
+		}
 	}
-	utils.RemoveAll(filepath.Join(appPath, "cleanup.json"))
 
-	var module = &parser.Module{Project: parser.MOC, Namespace: &parser.Namespace{Classes: make([]*parser.Class, 0)}}
+	if runtime.GOOS != "windows" { //TODO: os.Stat fails on windows
+		if info, err = os.Stat(mocPath); err != nil {
+			return
+		}
+		if info.IsDir() {
+			err = fmt.Errorf("%s is a directory", mocPath)
+			return
+		}
+	}
 
-	var walkFunc = func(path string, info os.FileInfo, err error) error {
-		if !strings.HasPrefix(info.Name(), "moc") && strings.HasSuffix(info.Name(), ".go") && filepath.Dir(path) == appPath && !info.IsDir() {
+	if err = os.Chdir(m.appPath); err != nil {
+		return
+	}
 
-			src, err := ioutil.ReadFile(path)
-			if err != nil {
-				utils.Log.WithError(err).Panicf("failed to load file %v", path)
-			}
+	cmd := exec.Command(mocPath, filepath.Join(m.appPath, "moc.cpp"), "-o", filepath.Join(m.appPath, "moc_moc.h"))
+	fields := logrus.Fields{
+		"func": "runQtMoc",
+		"cmd":  strings.Join(cmd.Args, " "),
+	}
+	utils.Log.WithFields(fields).Debug("Execute moc")
+	if output, err = cmd.CombinedOutput(); err != nil {
+		utils.Log.WithError(err).WithFields(fields).WithField("output", string(output)).Error("failed to run command")
+	}
+	return
+}
 
-			file, err := goparser.ParseFile(token.NewFileSet(), path, nil, 0)
-			if err != nil {
-				utils.Log.WithError(err).Panicf("failed to parse file %v", path)
-			}
+func (m *appMoc) generate() error {
+	files, err := ioutil.ReadDir(m.appPath)
+	if err != nil {
+		return err
+	}
+	fields := logrus.Fields{
+		"func": "appMoc.generate",
+	}
 
-			if !strings.Contains(string(src), "package main") {
-				var plist = strings.Split(filepath.Clean(path), string(filepath.Separator))
-				templater.MocModule = plist[len(plist)-2]
-			}
-
-			for _, d := range file.Decls {
-				if typeDecl, ok := d.(*ast.GenDecl); ok {
-					for _, s := range typeDecl.Specs {
-						if typeSpec, ok := s.(*ast.TypeSpec); ok {
-
-							var (
-								class     = &parser.Class{Access: "public", Module: parser.MOC, Name: typeSpec.Name.String(), Status: "public", Functions: make([]*parser.Function, 0)}
-								skipClass = true
-							)
-
-							if structDecl, ok := typeSpec.Type.(*ast.StructType); ok {
-								for _, field := range structDecl.Fields.List {
-
-									var fieldValue = string(src[field.Pos()-1 : field.End()-1])
-
-									if !strings.Contains(fieldValue, " ") && fieldValue != "" && class.Bases == "" {
-										if strings.Contains(fieldValue, ".") {
-											class.Bases = strings.Split(fieldValue, ".")[1]
-										} else {
-											class.Bases = fieldValue
-										}
-										skipClass = strings.HasPrefix(fieldValue, "*")
-									}
-
-									for range field.Names {
-
-										var _type = string(src[field.Type.Pos()-1 : field.Type.End()-1])
-										var tag = ""
-										if field.Tag != nil {
-											tag = field.Tag.Value
-										}
-
-										tag = strings.Replace(tag, "\"", "", -1)
-										tag = strings.Replace(tag, "`", "", -1)
-
-										var meta string
-										if strings.Contains(tag, "signal:") {
-											meta = parser.SIGNAL
-										}
-										if strings.Contains(tag, "slot:") {
-											meta = parser.SLOT
-										}
-
-										if meta != "" {
-											var (
-												name = strings.Split(tag, ":")[1]
-												f    = &parser.Function{Access: "public", Fullname: class.Name + "::" + name, Meta: meta, Name: name, Output: "void", Status: "public", Virtual: "non", Signature: "()"}
-											)
-											f.Parameters = getParameters(_type)
-											if f.Meta == parser.SLOT {
-												f.Output = getCppTypeFromGoType(strings.TrimSpace(strings.Split(_type, ")")[1]))
-											}
-											class.Functions = append(class.Functions, f)
-										}
-									}
-								}
-							}
-
-							if !skipClass {
-								module.Namespace.Classes = append(module.Namespace.Classes, class)
-							}
-						}
-					}
-				}
-			}
+	for _, info := range files {
+		filename := filepath.Join(m.appPath, info.Name())
+		loopFields := logrus.Fields{"filename": filename}
+		if info.IsDir() {
+			utils.Log.WithFields(fields).WithFields(loopFields).Debug("Skip directory")
+			continue
 		}
 
+		if filepath.Ext(filename) != ".go" {
+			utils.Log.WithFields(fields).WithFields(loopFields).Debug("Skip non-go source")
+			continue
+		}
+
+		if strings.HasPrefix(filename, "moc") {
+			utils.Log.WithFields(fields).WithFields(loopFields).Debug("Skip moc output")
+			continue
+		}
+
+		utils.Log.WithFields(fields).WithFields(loopFields).Debug("Process source")
+		if err = m.parseGo(filename); err != nil {
+			return err
+		}
+	}
+
+	structsSize := len(m.module.Namespace.Classes)
+	if structsSize == 0 {
+		utils.Log.WithFields(fields).Warning("failed to find moc structs")
 		return nil
 	}
+	fields["structs"] = structsSize
+	utils.Log.WithFields(fields).Debug("Found moc structs")
 
-	filepath.Walk(appPath, walkFunc)
+	if err = cacheModules(); err != nil {
+		return err
+	}
 
-	if len(module.Namespace.Classes) > 0 {
-
-		if !modulesInited {
-			for _, module := range templater.GetLibs() {
-				parser.GetModule(module)
+	//find valid base classes for the moc classes in moc namespace and global namespace
+	for _, c := range m.module.Namespace.Classes {
+		for _, bc := range c.GetBases() {
+			if isInClassArray(m.module.Namespace.Classes, bc) || isInClassMap(parser.ClassMap, bc) {
+				c.Bases = bc
+				break
 			}
-			modulesInited = true
 		}
+	}
 
-		module.Prepare()
+	m.module.Prepare()
 
-		for _, c := range parser.ClassMap {
-			if c.Module == parser.MOC {
-				for _, f := range c.Functions {
-					for _, p := range f.Parameters {
-						p.Value = getCppTypeFromGoType(p.Value)
-					}
+	if m.cleanupClassMap() == 0 {
+		utils.Log.WithFields(fields).Debug("failed to find at least one valid moc struct")
+		return nil
+		//return errors.New("failed to find at least one valid moc struct")
+	}
+
+	for _, c := range m.module.Namespace.Classes {
+		for _, f := range c.Functions {
+			if !f.NoMocDeduce {
+				for _, p := range f.Parameters {
+					p.Value = getCppTypeFromGoType(p.Value)
 				}
+				f.Output = getCppTypeFromGoType(f.Output)
 			}
 		}
+	}
 
-		for i := 0; i <= len(module.Namespace.Classes); i++ {
-			for _, c := range module.Namespace.Classes {
-				if bc, exists := parser.ClassMap[c.Bases]; exists {
-					for _, bcf := range bc.Functions {
-						if bcf.Meta == parser.CONSTRUCTOR || bcf.Meta == parser.DESTRUCTOR {
-							var f = *bcf
-							f.Fullname = strings.Replace(f.Fullname, bcf.Class(), c.Name, -1)
-							f.Name = strings.Replace(f.Name, bcf.Class(), c.Name, -1)
+	//copy constructor and destructor
+	for _ = range m.module.Namespace.Classes {
+		for _, c := range m.module.Namespace.Classes {
+			if bc, exists := parser.ClassMap[c.Bases]; exists {
+				for _, bcf := range bc.Functions {
+					if bcf.Meta == parser.CONSTRUCTOR || bcf.Meta == parser.DESTRUCTOR {
+						var f = *bcf
+						f.Name = strings.Replace(f.Name, bcf.Class(), c.Name, -1)
+						f.Fullname = strings.Replace(f.Fullname, bcf.Class(), c.Name, -1)
 
-							var exists bool
-							for _, cf := range c.Functions {
-								if cf.Fullname == f.Fullname {
-									exists = true
-								}
-							}
-							if !exists {
-								c.Functions = append(c.Functions, &f)
-							}
+						if !c.HasFunctionWithName(f.Name) {
+							c.Functions = append(c.Functions, &f)
 						}
 					}
 				}
 			}
 		}
+	}
 
-		for _, c := range parser.ClassMap {
-			if c.Module == parser.MOC {
-				if !c.IsQObjectSubClass() {
-					delete(parser.ClassMap, c.Name)
-				}
-			}
-		}
+	if err = ioutil.WriteFile(filepath.Join(m.appPath, "moc.cpp"), templater.CppTemplate(parser.MOC), 0644); err != nil {
+		return err
+	}
 
-		var classCount int
-		for _, class := range parser.ClassMap {
-			if class.Module == parser.MOC {
-				classCount++
-			}
-		}
+	if err = ioutil.WriteFile(filepath.Join(m.appPath, "moc.h"), templater.HTemplate(parser.MOC), 0644); err != nil {
+		return err
+	}
 
-		if classCount > 0 {
-			utils.SaveBytes(filepath.Join(appPath, "moc.cpp"), templater.CppTemplate(parser.MOC))
-			utils.SaveBytes(filepath.Join(appPath, "moc.h"), templater.HTemplate(parser.MOC))
-			utils.SaveBytes(filepath.Join(appPath, "moc.go"), templater.GoTemplate(parser.MOC, false))
+	if err = ioutil.WriteFile(filepath.Join(m.appPath, "moc.go"), templater.GoTemplate(parser.MOC, false), 0644); err != nil {
+		return err
+	}
+	templater.CopyCgoForMoc(parser.MOC, m.appPath)
 
-			tmpFiles = append(tmpFiles, filepath.Join(appPath, "moc.cpp"))
-			tmpFiles = append(tmpFiles, filepath.Join(appPath, "moc.h"))
-			tmpFiles = append(tmpFiles, filepath.Join(appPath, "moc.go"))
-
-			var mocPath string
-			switch runtime.GOOS {
-			case "darwin":
-				{
-					mocPath = filepath.Join(utils.QT_DARWIN_DIR(), "bin", "moc")
-				}
-
-			case "linux":
-				{
-					if utils.UsePkgConfig() {
-						mocPath = filepath.Join(strings.TrimSpace(utils.RunCmd(exec.Command("pkg-config", "--variable=host_bins", "Qt5Core"), "moc.LinuxPkgConfig_hostBins")), "moc")
-					} else {
-						mocPath = filepath.Join(utils.QT_DIR(), "5.7", "gcc_64", "bin", "moc")
-					}
-				}
-
-			case "windows":
-				{
-					mocPath = filepath.Join(utils.QT_DIR(), "5.7", "mingw53_32", "bin", "moc")
-				}
-			}
-
-			var moc = exec.Command(mocPath)
-			moc.Args = append(moc.Args,
-				filepath.Join(appPath, "moc.cpp"),
-				"-o", filepath.Join(appPath, "moc_moc.h"))
-			moc.Dir = filepath.Join(appPath)
-			utils.RunCmd(moc, "moc.moc")
-
-			tmpFiles = append(tmpFiles, filepath.Join(appPath, "moc_moc.h"))
-
-			var gofmt = exec.Command("go", "fmt")
-			gofmt.Dir = appPath
-			utils.RunCmd(gofmt, "moc.fmt")
-
-			templater.MocAppPath = appPath
-			templater.CopyCgo(parser.MOC)
+	for _, c := range parser.ClassMap {
+		if c.Module == parser.MOC {
+			delete(parser.ClassMap, c.Name)
 		}
 	}
+
+	return m.runQtMoc()
+}
+
+func isInClassArray(classes []*parser.Class, className string) bool {
+	for _, c := range classes {
+		if c.Name == className {
+			return true
+		}
+	}
+	return false
+}
+
+func isInClassMap(classes map[string]*parser.Class, className string) bool {
+	for _, c := range classes {
+		if c.Name == className {
+			return true
+		}
+	}
+	return false
 }
 
 func getParameters(tag string) []*parser.Parameter {
@@ -296,39 +410,35 @@ func getParameters(tag string) []*parser.Parameter {
 
 	if strings.Contains(tag, "(") {
 		var (
-			sig       = strings.Split(strings.Split(tag, "(")[1], ")")[0]
-			pairs     = strings.Split(sig, ",")
+			pairs     = strings.Split(strings.Split(strings.Split(tag, "(")[1], ")")[0], ",")
 			lastValue string
 		)
 
 		for i := len(pairs) - 1; i >= 0; i-- {
 			var (
 				pairSplitted = strings.Split(strings.TrimSpace(pairs[i]), " ")
-				p            *parser.Parameter
+				pOut         *parser.Parameter
 			)
 
 			if len(pairSplitted) == 1 {
-				p = &parser.Parameter{Name: fmt.Sprintf("v%v", i), Value: pairSplitted[0]}
-				if getCppTypeFromGoType(p.Value) == "void" {
-					p.Name = p.Value
-					p.Value = lastValue
+				pOut = &parser.Parameter{Name: fmt.Sprintf("v%v", i), Value: pairSplitted[0]}
+				if lastValue != "" {
+					pOut.Name = pOut.Value
+					pOut.Value = lastValue
 				}
 			} else {
-				p = &parser.Parameter{Name: pairSplitted[0], Value: pairSplitted[1]}
-				lastValue = p.Value
+				pOut = &parser.Parameter{Name: pairSplitted[0], Value: pairSplitted[1]}
+				lastValue = pOut.Value
 			}
 
-			if p.Name == "" && p.Value == "" {
-			} else {
-				out = append(out, p)
-			}
+			out = append(out, pOut)
 		}
 
-		var reverseOut = make([]*parser.Parameter, 0)
+		var rOut = make([]*parser.Parameter, 0)
 		for i := len(out) - 1; i >= 0; i-- {
-			reverseOut = append(reverseOut, out[i])
+			rOut = append(rOut, out[i])
 		}
-		return reverseOut
+		return rOut
 	}
 
 	return out
@@ -338,69 +448,35 @@ func getCppTypeFromGoType(t string) string {
 	t = strings.TrimPrefix(t, "*")
 	switch t {
 	case "string":
-		{
-			return "QString"
-		}
-
+		return "QString"
 	case "[]string":
-		{
-			return "QStringList"
-		}
-
+		return "QStringList"
 	case "bool":
-		{
-			return "bool"
-		}
-
+		return "bool"
+	case "int8":
+		return "qint8"
+	case "uint8":
+		return "quint8"
 	case "int16":
-		{
-			return "qint16"
-		}
-
+		return "qint16"
 	case "uint16":
-		{
-			return "quint16"
-		}
-
+		return "quint16"
 	case "int", "int32":
-		{
-			return "qint32"
-		}
-
+		return "qint32"
 	case "uint", "uint32":
-		{
-			return "quint32"
-		}
-
+		return "quint32"
 	case "int64":
-		{
-			return "qint64"
-		}
-
+		return "qint64"
 	case "uint64":
-		{
-			return "quint64"
-		}
-
+		return "quint64"
 	case "float32":
-		{
-			return "float"
-		}
-
+		return "float"
 	case "float64":
-		{
-			return "qreal"
-		}
-
+		return "qreal"
 	case "uintptr":
-		{
-			return "quintptr"
-		}
-
+		return "quintptr"
 	case "unsafe.Pointer":
-		{
-			return "void*"
-		}
+		return "void*"
 	}
 
 	if strings.Contains(t, ".") {
@@ -418,16 +494,24 @@ func getCppTypeFromGoType(t string) string {
 		return t
 	}
 
+	//TODO: *_ITF support
+
 	return "void"
 }
 
-func isBlacklisted(appPath, currentPath string) bool {
+// MocTree process an application and all it's sub-packages and create moc files
+func MocTree(appPath string) (err error) {
+	err = filepath.Walk(
+		appPath,
+		utils.WalkOnlyDirectory(
+			utils.WalkFilterBlacklist(appPath, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				return newAppMoc(path).generate()
+			}),
+		),
+	)
 
-	for _, n := range []string{"deploy", "qml", "android", "ios", "ios-simulator", "sailfish", "sailfish-emulator", "rpi1", "rpi2", "rpi3"} {
-		if strings.Contains(filepath.Join(currentPath), filepath.Join(appPath, n)) {
-			return true
-		}
-	}
-
-	return false
+	return err
 }

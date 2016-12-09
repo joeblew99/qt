@@ -7,7 +7,6 @@ package quick
 //#include "quick.h"
 import "C"
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/therecipe/qt"
 	"github.com/therecipe/qt/core"
@@ -18,6 +17,13 @@ import (
 	"strings"
 	"unsafe"
 )
+
+func cGoUnpackString(s C.struct_QtQuick_PackedString) string {
+	if len := int(s.len); len == -1 {
+		return C.GoString(s.data)
+	}
+	return C.GoStringN(s.data, C.int(s.len))
+}
 
 type QQuickAsyncImageProvider struct {
 	QQuickImageProvider
@@ -102,10 +108,10 @@ func (ptr *QQuickAsyncImageProvider) DestroyQQuickAsyncImageProviderDefault() {
 }
 
 //export callbackQQuickAsyncImageProvider_RequestImageResponse
-func callbackQQuickAsyncImageProvider_RequestImageResponse(ptr unsafe.Pointer, id *C.char, requestedSize unsafe.Pointer) unsafe.Pointer {
+func callbackQQuickAsyncImageProvider_RequestImageResponse(ptr unsafe.Pointer, id C.struct_QtQuick_PackedString, requestedSize unsafe.Pointer) unsafe.Pointer {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickAsyncImageProvider::requestImageResponse"); signal != nil {
-		return PointerFromQQuickImageResponse(signal.(func(string, *core.QSize) *QQuickImageResponse)(C.GoString(id), core.NewQSizeFromPointer(requestedSize)))
+		return PointerFromQQuickImageResponse(signal.(func(string, *core.QSize) *QQuickImageResponse)(cGoUnpackString(id), core.NewQSizeFromPointer(requestedSize)))
 	}
 
 	return PointerFromQQuickImageResponse(nil)
@@ -139,13 +145,13 @@ func (ptr *QQuickAsyncImageProvider) RequestImageResponse(id string, requestedSi
 }
 
 //export callbackQQuickAsyncImageProvider_RequestImage
-func callbackQQuickAsyncImageProvider_RequestImage(ptr unsafe.Pointer, id *C.char, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
+func callbackQQuickAsyncImageProvider_RequestImage(ptr unsafe.Pointer, id C.struct_QtQuick_PackedString, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickAsyncImageProvider::requestImage"); signal != nil {
-		return gui.PointerFromQImage(signal.(func(string, *core.QSize, *core.QSize) *gui.QImage)(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+		return gui.PointerFromQImage(signal.(func(string, *core.QSize, *core.QSize) *gui.QImage)(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 	}
 
-	return gui.PointerFromQImage(NewQQuickAsyncImageProviderFromPointer(ptr).RequestImageDefault(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+	return gui.PointerFromQImage(NewQQuickAsyncImageProviderFromPointer(ptr).RequestImageDefault(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 }
 
 func (ptr *QQuickAsyncImageProvider) ConnectRequestImage(f func(id string, size *core.QSize, requestedSize *core.QSize) *gui.QImage) {
@@ -185,13 +191,13 @@ func (ptr *QQuickAsyncImageProvider) RequestImageDefault(id string, size core.QS
 }
 
 //export callbackQQuickAsyncImageProvider_RequestPixmap
-func callbackQQuickAsyncImageProvider_RequestPixmap(ptr unsafe.Pointer, id *C.char, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
+func callbackQQuickAsyncImageProvider_RequestPixmap(ptr unsafe.Pointer, id C.struct_QtQuick_PackedString, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickAsyncImageProvider::requestPixmap"); signal != nil {
-		return gui.PointerFromQPixmap(signal.(func(string, *core.QSize, *core.QSize) *gui.QPixmap)(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+		return gui.PointerFromQPixmap(signal.(func(string, *core.QSize, *core.QSize) *gui.QPixmap)(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 	}
 
-	return gui.PointerFromQPixmap(NewQQuickAsyncImageProviderFromPointer(ptr).RequestPixmapDefault(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+	return gui.PointerFromQPixmap(NewQQuickAsyncImageProviderFromPointer(ptr).RequestPixmapDefault(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 }
 
 func (ptr *QQuickAsyncImageProvider) ConnectRequestPixmap(f func(id string, size *core.QSize, requestedSize *core.QSize) *gui.QPixmap) {
@@ -231,13 +237,13 @@ func (ptr *QQuickAsyncImageProvider) RequestPixmapDefault(id string, size core.Q
 }
 
 //export callbackQQuickAsyncImageProvider_RequestTexture
-func callbackQQuickAsyncImageProvider_RequestTexture(ptr unsafe.Pointer, id *C.char, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
+func callbackQQuickAsyncImageProvider_RequestTexture(ptr unsafe.Pointer, id C.struct_QtQuick_PackedString, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickAsyncImageProvider::requestTexture"); signal != nil {
-		return PointerFromQQuickTextureFactory(signal.(func(string, *core.QSize, *core.QSize) *QQuickTextureFactory)(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+		return PointerFromQQuickTextureFactory(signal.(func(string, *core.QSize, *core.QSize) *QQuickTextureFactory)(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 	}
 
-	return PointerFromQQuickTextureFactory(NewQQuickAsyncImageProviderFromPointer(ptr).RequestTextureDefault(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+	return PointerFromQQuickTextureFactory(NewQQuickAsyncImageProviderFromPointer(ptr).RequestTextureDefault(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 }
 
 func (ptr *QQuickAsyncImageProvider) ConnectRequestTexture(f func(id string, size *core.QSize, requestedSize *core.QSize) *QQuickTextureFactory) {
@@ -1826,13 +1832,13 @@ func (ptr *QQuickImageProvider) ImageType() qml.QQmlImageProviderBase__ImageType
 }
 
 //export callbackQQuickImageProvider_RequestImage
-func callbackQQuickImageProvider_RequestImage(ptr unsafe.Pointer, id *C.char, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
+func callbackQQuickImageProvider_RequestImage(ptr unsafe.Pointer, id C.struct_QtQuick_PackedString, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickImageProvider::requestImage"); signal != nil {
-		return gui.PointerFromQImage(signal.(func(string, *core.QSize, *core.QSize) *gui.QImage)(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+		return gui.PointerFromQImage(signal.(func(string, *core.QSize, *core.QSize) *gui.QImage)(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 	}
 
-	return gui.PointerFromQImage(NewQQuickImageProviderFromPointer(ptr).RequestImageDefault(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+	return gui.PointerFromQImage(NewQQuickImageProviderFromPointer(ptr).RequestImageDefault(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 }
 
 func (ptr *QQuickImageProvider) ConnectRequestImage(f func(id string, size *core.QSize, requestedSize *core.QSize) *gui.QImage) {
@@ -1872,13 +1878,13 @@ func (ptr *QQuickImageProvider) RequestImageDefault(id string, size core.QSize_I
 }
 
 //export callbackQQuickImageProvider_RequestPixmap
-func callbackQQuickImageProvider_RequestPixmap(ptr unsafe.Pointer, id *C.char, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
+func callbackQQuickImageProvider_RequestPixmap(ptr unsafe.Pointer, id C.struct_QtQuick_PackedString, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickImageProvider::requestPixmap"); signal != nil {
-		return gui.PointerFromQPixmap(signal.(func(string, *core.QSize, *core.QSize) *gui.QPixmap)(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+		return gui.PointerFromQPixmap(signal.(func(string, *core.QSize, *core.QSize) *gui.QPixmap)(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 	}
 
-	return gui.PointerFromQPixmap(NewQQuickImageProviderFromPointer(ptr).RequestPixmapDefault(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+	return gui.PointerFromQPixmap(NewQQuickImageProviderFromPointer(ptr).RequestPixmapDefault(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 }
 
 func (ptr *QQuickImageProvider) ConnectRequestPixmap(f func(id string, size *core.QSize, requestedSize *core.QSize) *gui.QPixmap) {
@@ -1918,13 +1924,13 @@ func (ptr *QQuickImageProvider) RequestPixmapDefault(id string, size core.QSize_
 }
 
 //export callbackQQuickImageProvider_RequestTexture
-func callbackQQuickImageProvider_RequestTexture(ptr unsafe.Pointer, id *C.char, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
+func callbackQQuickImageProvider_RequestTexture(ptr unsafe.Pointer, id C.struct_QtQuick_PackedString, size unsafe.Pointer, requestedSize unsafe.Pointer) unsafe.Pointer {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickImageProvider::requestTexture"); signal != nil {
-		return PointerFromQQuickTextureFactory(signal.(func(string, *core.QSize, *core.QSize) *QQuickTextureFactory)(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+		return PointerFromQQuickTextureFactory(signal.(func(string, *core.QSize, *core.QSize) *QQuickTextureFactory)(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 	}
 
-	return PointerFromQQuickTextureFactory(NewQQuickImageProviderFromPointer(ptr).RequestTextureDefault(C.GoString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
+	return PointerFromQQuickTextureFactory(NewQQuickImageProviderFromPointer(ptr).RequestTextureDefault(cGoUnpackString(id), core.NewQSizeFromPointer(size), core.NewQSizeFromPointer(requestedSize)))
 }
 
 func (ptr *QQuickImageProvider) ConnectRequestTexture(f func(id string, size *core.QSize, requestedSize *core.QSize) *QQuickTextureFactory) {
@@ -2114,14 +2120,14 @@ func (ptr *QQuickImageResponse) DisconnectErrorString() {
 
 func (ptr *QQuickImageResponse) ErrorString() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QQuickImageResponse_ErrorString(ptr.Pointer()))
+		return cGoUnpackString(C.QQuickImageResponse_ErrorString(ptr.Pointer()))
 	}
 	return ""
 }
 
 func (ptr *QQuickImageResponse) ErrorStringDefault() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QQuickImageResponse_ErrorStringDefault(ptr.Pointer()))
+		return cGoUnpackString(C.QQuickImageResponse_ErrorStringDefault(ptr.Pointer()))
 	}
 	return ""
 }
@@ -2964,7 +2970,7 @@ func (ptr *QQuickItem) Smooth() bool {
 
 func (ptr *QQuickItem) State() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QQuickItem_State(ptr.Pointer()))
+		return cGoUnpackString(C.QQuickItem_State(ptr.Pointer()))
 	}
 	return ""
 }
@@ -3071,6 +3077,19 @@ func (ptr *QQuickItem) ChildAt(x float64, y float64) *QQuickItem {
 			tmpValue.ConnectDestroyed(func(*core.QObject) { tmpValue.SetPointer(nil) })
 		}
 		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QQuickItem) ChildItems() []*QQuickItem {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtQuick_PackedList) []*QQuickItem {
+			var out = make([]*QQuickItem, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQQuickItemFromPointer(l.data).childItems_atList(i)
+			}
+			return out
+		}(C.QQuickItem_ChildItems(ptr.Pointer()))
 	}
 	return nil
 }
@@ -4445,6 +4464,17 @@ func (ptr *QQuickItem) DestroyQQuickItemDefault() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QQuickItem) childItems_atList(i int) *QQuickItem {
+	if ptr.Pointer() != nil {
+		var tmpValue = NewQQuickItemFromPointer(C.QQuickItem_childItems_atList(ptr.Pointer(), C.int(int32(i))))
+		if !qt.ExistsSignal(fmt.Sprint(tmpValue.Pointer()), "QObject::destroyed") {
+			tmpValue.ConnectDestroyed(func(*core.QObject) { tmpValue.SetPointer(nil) })
+		}
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQQuickItem_TimerEvent
@@ -8550,6 +8580,19 @@ func (ptr *QQuickView) Engine() *qml.QQmlEngine {
 	return nil
 }
 
+func (ptr *QQuickView) Errors() []*qml.QQmlError {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtQuick_PackedList) []*qml.QQmlError {
+			var out = make([]*qml.QQmlError, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQQuickViewFromPointer(l.data).errors_atList(i)
+			}
+			return out
+		}(C.QQuickView_Errors(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QQuickView) InitialSize() *core.QSize {
 	if ptr.Pointer() != nil {
 		var tmpValue = core.NewQSizeFromPointer(C.QQuickView_InitialSize(ptr.Pointer()))
@@ -8715,6 +8758,15 @@ func (ptr *QQuickView) DestroyQQuickViewDefault() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QQuickView) errors_atList(i int) *qml.QQmlError {
+	if ptr.Pointer() != nil {
+		var tmpValue = qml.NewQQmlErrorFromPointer(C.QQuickView_errors_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*qml.QQmlError).DestroyQQmlError)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQQuickView_ReleaseResources
@@ -8963,11 +9015,11 @@ func (ptr *QQuickView) SetMinimumWidthDefault(w int) {
 }
 
 //export callbackQQuickView_SetTitle
-func callbackQQuickView_SetTitle(ptr unsafe.Pointer, vqs *C.char) {
+func callbackQQuickView_SetTitle(ptr unsafe.Pointer, vqs C.struct_QtQuick_PackedString) {
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickView::setTitle"); signal != nil {
-		signal.(func(string))(C.GoString(vqs))
+		signal.(func(string))(cGoUnpackString(vqs))
 	} else {
-		NewQQuickViewFromPointer(ptr).SetTitleDefault(C.GoString(vqs))
+		NewQQuickViewFromPointer(ptr).SetTitleDefault(cGoUnpackString(vqs))
 	}
 }
 
@@ -9408,16 +9460,16 @@ func (ptr *QQuickView) MoveEventDefault(ev gui.QMoveEvent_ITF) {
 }
 
 //export callbackQQuickView_NativeEvent
-func callbackQQuickView_NativeEvent(ptr unsafe.Pointer, eventType *C.char, message unsafe.Pointer, result C.long) C.char {
+func callbackQQuickView_NativeEvent(ptr unsafe.Pointer, eventType unsafe.Pointer, message unsafe.Pointer, result C.long) C.char {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickView::nativeEvent"); signal != nil {
-		return C.char(int8(qt.GoBoolToInt(signal.(func(string, unsafe.Pointer, int) bool)(qt.HexDecodeToString(C.GoString(eventType)), message, int(int32(result))))))
+		return C.char(int8(qt.GoBoolToInt(signal.(func(*core.QByteArray, unsafe.Pointer, int) bool)(core.NewQByteArrayFromPointer(eventType), message, int(int32(result))))))
 	}
 
-	return C.char(int8(qt.GoBoolToInt(NewQQuickViewFromPointer(ptr).NativeEventDefault(qt.HexDecodeToString(C.GoString(eventType)), message, int(int32(result))))))
+	return C.char(int8(qt.GoBoolToInt(NewQQuickViewFromPointer(ptr).NativeEventDefault(core.NewQByteArrayFromPointer(eventType), message, int(int32(result))))))
 }
 
-func (ptr *QQuickView) ConnectNativeEvent(f func(eventType string, message unsafe.Pointer, result int) bool) {
+func (ptr *QQuickView) ConnectNativeEvent(f func(eventType *core.QByteArray, message unsafe.Pointer, result int) bool) {
 	if ptr.Pointer() != nil {
 
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QQuickView::nativeEvent", f)
@@ -9431,20 +9483,16 @@ func (ptr *QQuickView) DisconnectNativeEvent() {
 	}
 }
 
-func (ptr *QQuickView) NativeEvent(eventType string, message unsafe.Pointer, result int) bool {
+func (ptr *QQuickView) NativeEvent(eventType core.QByteArray_ITF, message unsafe.Pointer, result int) bool {
 	if ptr.Pointer() != nil {
-		var eventTypeC = C.CString(hex.EncodeToString([]byte(eventType)))
-		defer C.free(unsafe.Pointer(eventTypeC))
-		return C.QQuickView_NativeEvent(ptr.Pointer(), eventTypeC, message, C.long(int32(result))) != 0
+		return C.QQuickView_NativeEvent(ptr.Pointer(), core.PointerFromQByteArray(eventType), message, C.long(int32(result))) != 0
 	}
 	return false
 }
 
-func (ptr *QQuickView) NativeEventDefault(eventType string, message unsafe.Pointer, result int) bool {
+func (ptr *QQuickView) NativeEventDefault(eventType core.QByteArray_ITF, message unsafe.Pointer, result int) bool {
 	if ptr.Pointer() != nil {
-		var eventTypeC = C.CString(hex.EncodeToString([]byte(eventType)))
-		defer C.free(unsafe.Pointer(eventTypeC))
-		return C.QQuickView_NativeEventDefault(ptr.Pointer(), eventTypeC, message, C.long(int32(result))) != 0
+		return C.QQuickView_NativeEventDefault(ptr.Pointer(), core.PointerFromQByteArray(eventType), message, C.long(int32(result))) != 0
 	}
 	return false
 }
@@ -10431,6 +10479,19 @@ func (ptr *QQuickWidget) Engine() *qml.QQmlEngine {
 	return nil
 }
 
+func (ptr *QQuickWidget) Errors() []*qml.QQmlError {
+	if ptr.Pointer() != nil {
+		return func(l C.struct_QtQuick_PackedList) []*qml.QQmlError {
+			var out = make([]*qml.QQmlError, int(l.len))
+			for i := 0; i < int(l.len); i++ {
+				out[i] = NewQQuickWidgetFromPointer(l.data).errors_atList(i)
+			}
+			return out
+		}(C.QQuickWidget_Errors(ptr.Pointer()))
+	}
+	return nil
+}
+
 func (ptr *QQuickWidget) Event(e core.QEvent_ITF) bool {
 	if ptr.Pointer() != nil {
 		return C.QQuickWidget_Event(ptr.Pointer(), core.PointerFromQEvent(e)) != 0
@@ -10823,10 +10884,10 @@ func (ptr *QQuickWidget) RootObject() *QQuickItem {
 }
 
 //export callbackQQuickWidget_SceneGraphError
-func callbackQQuickWidget_SceneGraphError(ptr unsafe.Pointer, error C.longlong, message *C.char) {
+func callbackQQuickWidget_SceneGraphError(ptr unsafe.Pointer, error C.longlong, message C.struct_QtQuick_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickWidget::sceneGraphError"); signal != nil {
-		signal.(func(QQuickWindow__SceneGraphError, string))(QQuickWindow__SceneGraphError(error), C.GoString(message))
+		signal.(func(QQuickWindow__SceneGraphError, string))(QQuickWindow__SceneGraphError(error), cGoUnpackString(message))
 	}
 
 }
@@ -11041,6 +11102,15 @@ func (ptr *QQuickWidget) DestroyQQuickWidgetDefault() {
 		qt.DisconnectAllSignals(fmt.Sprint(ptr.Pointer()))
 		ptr.SetPointer(nil)
 	}
+}
+
+func (ptr *QQuickWidget) errors_atList(i int) *qml.QQmlError {
+	if ptr.Pointer() != nil {
+		var tmpValue = qml.NewQQmlErrorFromPointer(C.QQuickWidget_errors_atList(ptr.Pointer(), C.int(int32(i))))
+		runtime.SetFinalizer(tmpValue, (*qml.QQmlError).DestroyQQmlError)
+		return tmpValue
+	}
+	return nil
 }
 
 //export callbackQQuickWidget_ActionEvent
@@ -11301,11 +11371,11 @@ func (ptr *QQuickWidget) SetEnabledDefault(vbo bool) {
 }
 
 //export callbackQQuickWidget_SetStyleSheet
-func callbackQQuickWidget_SetStyleSheet(ptr unsafe.Pointer, styleSheet *C.char) {
+func callbackQQuickWidget_SetStyleSheet(ptr unsafe.Pointer, styleSheet C.struct_QtQuick_PackedString) {
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickWidget::setStyleSheet"); signal != nil {
-		signal.(func(string))(C.GoString(styleSheet))
+		signal.(func(string))(cGoUnpackString(styleSheet))
 	} else {
-		NewQQuickWidgetFromPointer(ptr).SetStyleSheetDefault(C.GoString(styleSheet))
+		NewQQuickWidgetFromPointer(ptr).SetStyleSheetDefault(cGoUnpackString(styleSheet))
 	}
 }
 
@@ -11410,11 +11480,11 @@ func (ptr *QQuickWidget) SetWindowModifiedDefault(vbo bool) {
 }
 
 //export callbackQQuickWidget_SetWindowTitle
-func callbackQQuickWidget_SetWindowTitle(ptr unsafe.Pointer, vqs *C.char) {
+func callbackQQuickWidget_SetWindowTitle(ptr unsafe.Pointer, vqs C.struct_QtQuick_PackedString) {
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickWidget::setWindowTitle"); signal != nil {
-		signal.(func(string))(C.GoString(vqs))
+		signal.(func(string))(cGoUnpackString(vqs))
 	} else {
-		NewQQuickWidgetFromPointer(ptr).SetWindowTitleDefault(C.GoString(vqs))
+		NewQQuickWidgetFromPointer(ptr).SetWindowTitleDefault(cGoUnpackString(vqs))
 	}
 }
 
@@ -11898,16 +11968,16 @@ func (ptr *QQuickWidget) LowerDefault() {
 }
 
 //export callbackQQuickWidget_NativeEvent
-func callbackQQuickWidget_NativeEvent(ptr unsafe.Pointer, eventType *C.char, message unsafe.Pointer, result C.long) C.char {
+func callbackQQuickWidget_NativeEvent(ptr unsafe.Pointer, eventType unsafe.Pointer, message unsafe.Pointer, result C.long) C.char {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickWidget::nativeEvent"); signal != nil {
-		return C.char(int8(qt.GoBoolToInt(signal.(func(string, unsafe.Pointer, int) bool)(qt.HexDecodeToString(C.GoString(eventType)), message, int(int32(result))))))
+		return C.char(int8(qt.GoBoolToInt(signal.(func(*core.QByteArray, unsafe.Pointer, int) bool)(core.NewQByteArrayFromPointer(eventType), message, int(int32(result))))))
 	}
 
-	return C.char(int8(qt.GoBoolToInt(NewQQuickWidgetFromPointer(ptr).NativeEventDefault(qt.HexDecodeToString(C.GoString(eventType)), message, int(int32(result))))))
+	return C.char(int8(qt.GoBoolToInt(NewQQuickWidgetFromPointer(ptr).NativeEventDefault(core.NewQByteArrayFromPointer(eventType), message, int(int32(result))))))
 }
 
-func (ptr *QQuickWidget) ConnectNativeEvent(f func(eventType string, message unsafe.Pointer, result int) bool) {
+func (ptr *QQuickWidget) ConnectNativeEvent(f func(eventType *core.QByteArray, message unsafe.Pointer, result int) bool) {
 	if ptr.Pointer() != nil {
 
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QQuickWidget::nativeEvent", f)
@@ -11921,20 +11991,16 @@ func (ptr *QQuickWidget) DisconnectNativeEvent() {
 	}
 }
 
-func (ptr *QQuickWidget) NativeEvent(eventType string, message unsafe.Pointer, result int) bool {
+func (ptr *QQuickWidget) NativeEvent(eventType core.QByteArray_ITF, message unsafe.Pointer, result int) bool {
 	if ptr.Pointer() != nil {
-		var eventTypeC = C.CString(hex.EncodeToString([]byte(eventType)))
-		defer C.free(unsafe.Pointer(eventTypeC))
-		return C.QQuickWidget_NativeEvent(ptr.Pointer(), eventTypeC, message, C.long(int32(result))) != 0
+		return C.QQuickWidget_NativeEvent(ptr.Pointer(), core.PointerFromQByteArray(eventType), message, C.long(int32(result))) != 0
 	}
 	return false
 }
 
-func (ptr *QQuickWidget) NativeEventDefault(eventType string, message unsafe.Pointer, result int) bool {
+func (ptr *QQuickWidget) NativeEventDefault(eventType core.QByteArray_ITF, message unsafe.Pointer, result int) bool {
 	if ptr.Pointer() != nil {
-		var eventTypeC = C.CString(hex.EncodeToString([]byte(eventType)))
-		defer C.free(unsafe.Pointer(eventTypeC))
-		return C.QQuickWidget_NativeEventDefault(ptr.Pointer(), eventTypeC, message, C.long(int32(result))) != 0
+		return C.QQuickWidget_NativeEventDefault(ptr.Pointer(), core.PointerFromQByteArray(eventType), message, C.long(int32(result))) != 0
 	}
 	return false
 }
@@ -13381,10 +13447,10 @@ func (ptr *QQuickWindow) SceneGraphAboutToStop() {
 }
 
 //export callbackQQuickWindow_SceneGraphError
-func callbackQQuickWindow_SceneGraphError(ptr unsafe.Pointer, error C.longlong, message *C.char) {
+func callbackQQuickWindow_SceneGraphError(ptr unsafe.Pointer, error C.longlong, message C.struct_QtQuick_PackedString) {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickWindow::sceneGraphError"); signal != nil {
-		signal.(func(QQuickWindow__SceneGraphError, string))(QQuickWindow__SceneGraphError(error), C.GoString(message))
+		signal.(func(QQuickWindow__SceneGraphError, string))(QQuickWindow__SceneGraphError(error), cGoUnpackString(message))
 	}
 
 }
@@ -13776,11 +13842,11 @@ func (ptr *QQuickWindow) SetMinimumWidthDefault(w int) {
 }
 
 //export callbackQQuickWindow_SetTitle
-func callbackQQuickWindow_SetTitle(ptr unsafe.Pointer, vqs *C.char) {
+func callbackQQuickWindow_SetTitle(ptr unsafe.Pointer, vqs C.struct_QtQuick_PackedString) {
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickWindow::setTitle"); signal != nil {
-		signal.(func(string))(C.GoString(vqs))
+		signal.(func(string))(cGoUnpackString(vqs))
 	} else {
-		NewQQuickWindowFromPointer(ptr).SetTitleDefault(C.GoString(vqs))
+		NewQQuickWindowFromPointer(ptr).SetTitleDefault(cGoUnpackString(vqs))
 	}
 }
 
@@ -14221,16 +14287,16 @@ func (ptr *QQuickWindow) MoveEventDefault(ev gui.QMoveEvent_ITF) {
 }
 
 //export callbackQQuickWindow_NativeEvent
-func callbackQQuickWindow_NativeEvent(ptr unsafe.Pointer, eventType *C.char, message unsafe.Pointer, result C.long) C.char {
+func callbackQQuickWindow_NativeEvent(ptr unsafe.Pointer, eventType unsafe.Pointer, message unsafe.Pointer, result C.long) C.char {
 
 	if signal := qt.GetSignal(fmt.Sprint(ptr), "QQuickWindow::nativeEvent"); signal != nil {
-		return C.char(int8(qt.GoBoolToInt(signal.(func(string, unsafe.Pointer, int) bool)(qt.HexDecodeToString(C.GoString(eventType)), message, int(int32(result))))))
+		return C.char(int8(qt.GoBoolToInt(signal.(func(*core.QByteArray, unsafe.Pointer, int) bool)(core.NewQByteArrayFromPointer(eventType), message, int(int32(result))))))
 	}
 
-	return C.char(int8(qt.GoBoolToInt(NewQQuickWindowFromPointer(ptr).NativeEventDefault(qt.HexDecodeToString(C.GoString(eventType)), message, int(int32(result))))))
+	return C.char(int8(qt.GoBoolToInt(NewQQuickWindowFromPointer(ptr).NativeEventDefault(core.NewQByteArrayFromPointer(eventType), message, int(int32(result))))))
 }
 
-func (ptr *QQuickWindow) ConnectNativeEvent(f func(eventType string, message unsafe.Pointer, result int) bool) {
+func (ptr *QQuickWindow) ConnectNativeEvent(f func(eventType *core.QByteArray, message unsafe.Pointer, result int) bool) {
 	if ptr.Pointer() != nil {
 
 		qt.ConnectSignal(fmt.Sprint(ptr.Pointer()), "QQuickWindow::nativeEvent", f)
@@ -14244,20 +14310,16 @@ func (ptr *QQuickWindow) DisconnectNativeEvent() {
 	}
 }
 
-func (ptr *QQuickWindow) NativeEvent(eventType string, message unsafe.Pointer, result int) bool {
+func (ptr *QQuickWindow) NativeEvent(eventType core.QByteArray_ITF, message unsafe.Pointer, result int) bool {
 	if ptr.Pointer() != nil {
-		var eventTypeC = C.CString(hex.EncodeToString([]byte(eventType)))
-		defer C.free(unsafe.Pointer(eventTypeC))
-		return C.QQuickWindow_NativeEvent(ptr.Pointer(), eventTypeC, message, C.long(int32(result))) != 0
+		return C.QQuickWindow_NativeEvent(ptr.Pointer(), core.PointerFromQByteArray(eventType), message, C.long(int32(result))) != 0
 	}
 	return false
 }
 
-func (ptr *QQuickWindow) NativeEventDefault(eventType string, message unsafe.Pointer, result int) bool {
+func (ptr *QQuickWindow) NativeEventDefault(eventType core.QByteArray_ITF, message unsafe.Pointer, result int) bool {
 	if ptr.Pointer() != nil {
-		var eventTypeC = C.CString(hex.EncodeToString([]byte(eventType)))
-		defer C.free(unsafe.Pointer(eventTypeC))
-		return C.QQuickWindow_NativeEventDefault(ptr.Pointer(), eventTypeC, message, C.long(int32(result))) != 0
+		return C.QQuickWindow_NativeEventDefault(ptr.Pointer(), core.PointerFromQByteArray(eventType), message, C.long(int32(result))) != 0
 	}
 	return false
 }
@@ -15063,6 +15125,15 @@ func (ptr *QSGAbstractRenderer) DeviceRect() *core.QRect {
 	if ptr.Pointer() != nil {
 		var tmpValue = core.NewQRectFromPointer(C.QSGAbstractRenderer_DeviceRect(ptr.Pointer()))
 		runtime.SetFinalizer(tmpValue, (*core.QRect).DestroyQRect)
+		return tmpValue
+	}
+	return nil
+}
+
+func (ptr *QSGAbstractRenderer) ProjectionMatrix() *gui.QMatrix4x4 {
+	if ptr.Pointer() != nil {
+		var tmpValue = gui.NewQMatrix4x4FromPointer(C.QSGAbstractRenderer_ProjectionMatrix(ptr.Pointer()))
+		runtime.SetFinalizer(tmpValue, (*gui.QMatrix4x4).DestroyQMatrix4x4)
 		return tmpValue
 	}
 	return nil
@@ -17736,14 +17807,14 @@ func (ptr *QSGMaterialShader) DisconnectFragmentShader() {
 
 func (ptr *QSGMaterialShader) FragmentShader() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QSGMaterialShader_FragmentShader(ptr.Pointer()))
+		return cGoUnpackString(C.QSGMaterialShader_FragmentShader(ptr.Pointer()))
 	}
 	return ""
 }
 
 func (ptr *QSGMaterialShader) FragmentShaderDefault() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QSGMaterialShader_FragmentShaderDefault(ptr.Pointer()))
+		return cGoUnpackString(C.QSGMaterialShader_FragmentShaderDefault(ptr.Pointer()))
 	}
 	return ""
 }
@@ -17774,14 +17845,14 @@ func (ptr *QSGMaterialShader) DisconnectVertexShader() {
 
 func (ptr *QSGMaterialShader) VertexShader() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QSGMaterialShader_VertexShader(ptr.Pointer()))
+		return cGoUnpackString(C.QSGMaterialShader_VertexShader(ptr.Pointer()))
 	}
 	return ""
 }
 
 func (ptr *QSGMaterialShader) VertexShaderDefault() string {
 	if ptr.Pointer() != nil {
-		return C.GoString(C.QSGMaterialShader_VertexShaderDefault(ptr.Pointer()))
+		return cGoUnpackString(C.QSGMaterialShader_VertexShaderDefault(ptr.Pointer()))
 	}
 	return ""
 }

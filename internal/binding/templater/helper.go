@@ -40,7 +40,7 @@ func functionIsSupported(_ *parser.Class, f *parser.Function) bool {
 
 		f.Fullname == "QSignalBlocker::QSignalBlocker" && f.OverloadNumber == "3", //undefined symbol
 
-		(f.Class() == "QCoreApplication" || f.Class() == "QGuiApplication" || f.Class() == "QApplication" ||
+		(parser.ClassMap[f.Class()].IsSubClass("QCoreApplication") ||
 			f.Class() == "QAudioInput" || f.Class() == "QAudioOutput") && f.Name == "notify", //redeclared (name collision with QObject)
 
 		f.Fullname == "QGraphicsItem::isBlockedByModalPanel", //** problem
@@ -51,9 +51,31 @@ func functionIsSupported(_ *parser.Class, f *parser.Function) bool {
 
 		f.Name == "QDesignerFormWindowInterface" || f.Name == "QDesignerFormWindowManagerInterface" || f.Name == "QDesignerWidgetBoxInterface", //unimplemented virtual
 
-		strings.Contains(f.Access, "unsupported"), strings.ContainsAny(f.Signature, "<>"):
+		f.Fullname == "QNdefNfcSmartPosterRecord::titleRecords", //T<T> output with unsupported output for *_atList
+		f.Fullname == "QHelpEngineCore::filterAttributeSets", f.Fullname == "QHelpSearchEngine::query", f.Fullname == "QHelpSearchQueryWidget::query",
+		f.Fullname == "QPluginLoader::staticPlugins", f.Fullname == "QSslConfiguration::ellipticCurves", f.Fullname == "QSslConfiguration::supportedEllipticCurves",
+		f.Fullname == "QTextFormat::lengthVectorProperty", f.Fullname == "QTextTableFormat::columnWidthConstraints",
 
+		strings.Contains(f.Access, "unsupported"):
 		{
+			if !strings.Contains(f.Access, "unsupported") {
+				f.Access = "unsupported_isBlockedFunction"
+			}
+			return false
+		}
+	}
+
+	if strings.ContainsAny(f.Signature, "<>") {
+		if parser.IsPackedList(f.Output) {
+			for _, p := range f.Parameters {
+				if strings.ContainsAny(p.Value, "<>") {
+					if !strings.Contains(f.Access, "unsupported") {
+						f.Access = "unsupported_isBlockedFunction"
+					}
+					return false
+				}
+			}
+		} else {
 			if !strings.Contains(f.Access, "unsupported") {
 				f.Access = "unsupported_isBlockedFunction"
 			}
@@ -100,11 +122,18 @@ func functionIsSupportedDefault(f *parser.Function) bool {
 		"QSGDynamicTexture::textureSize", "QSGDynamicTexture::hasAlphaChannel",
 		"QSGDynamicTexture::textureId",
 
-		"QModbusClient::open", "QModbusClient::close", "QModbusServer::open", "QModbusServer::close":
+		"QModbusClient::open", "QModbusClient::close", "QModbusServer::open", "QModbusServer::close",
+
+		"QSimpleXmlNodeModel::name":
 
 		{
 			return false
 		}
+	}
+
+	//needed for moc
+	if parser.ClassMap[f.Class()].IsSubClass("QCoreApplication") && (f.Name == "autoMaximizeThreshold" || f.Name == "setAutoMaximizeThreshold") {
+		return false
 	}
 
 	if Minimal {
@@ -115,10 +144,13 @@ func functionIsSupportedDefault(f *parser.Function) bool {
 }
 
 func classIsSupported(c *parser.Class) bool {
+	if c == nil {
+		return false
+	}
 
 	switch c.Name {
 	case
-		"QString", "QStringList", "QByteArray", //mapped to primitive
+		"QString", "QStringList", //mapped to primitive
 
 		"QExplicitlySharedDataPointer", "QFuture", "QDBusPendingReply", "QDBusReply", "QFutureSynchronizer", //needs template
 		"QGlobalStatic", "QMultiHash", "QQueue", "QMultiMap", "QScopedPointer", "QSharedDataPointer",
@@ -414,6 +446,7 @@ func manualWeakLink(module string) {
 		switch class.Module {
 		case "QtCore":
 			{
+				class.WeakLink["QtGui"] = true
 				class.WeakLink["QtWidgets"] = true
 			}
 
@@ -436,5 +469,5 @@ func classNeedsDestructor(c *parser.Class) bool {
 }
 
 func UseStub() bool {
-	return utils.QT_STUB() && !Minimal && !UsedFromMoc && !(CurrentModule == "AndroidExtras" || CurrentModule == "Sailfish")
+	return utils.QT_STUB() && !Minimal && !Moc && !(CurrentModule == "AndroidExtras" || CurrentModule == "Sailfish")
 }

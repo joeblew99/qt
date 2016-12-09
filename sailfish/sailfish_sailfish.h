@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+struct QtSailfish_PackedString { char* data; long long len; };
+struct QtSailfish_PackedList { void* data; long long len; };
 void* SailfishApp_SailfishApp_Application(int argc, char* argv);
 int SailfishApp_SailfishApp_Main(int argc, char* argv);
 void* SailfishApp_SailfishApp_CreateView();

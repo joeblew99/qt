@@ -15,6 +15,10 @@ func GoTemplate(module string, stub bool) []byte {
 	var bb = new(bytes.Buffer)
 	defer bb.Reset()
 
+	if !(UseStub() || stub) {
+		fmt.Fprintf(bb, "func cGoUnpackString(s C.struct_%v_PackedString) string { if len := int(s.len); len == -1 {\n return C.GoString(s.data)\n }\n return C.GoStringN(s.data, C.int(s.len)) }\n", strings.Title(module))
+	}
+
 	for _, class := range getSortedClassesForModule(module) {
 
 		//all class enums
@@ -185,7 +189,7 @@ ptr.SetPointer(nil)
 						{
 							for _, mode := range converter.CppOutputParametersJNIGenericModes(function) {
 								var function = *function
-								function.TemplateMode = mode
+								function.TemplateModeJNI = mode
 
 								fmt.Fprintf(bb, "%v\n\n", goFunction(&function))
 							}
@@ -373,18 +377,13 @@ import (
 		)
 	}
 
-	for _, m := range append(Libs, "qt", "strings", "unsafe", "log", "runtime", "hex", "fmt") {
+	for _, m := range append(Libs, "qt", "strings", "unsafe", "log", "runtime", "fmt") {
 		m = strings.ToLower(m)
 		if strings.Contains(string(input), fmt.Sprintf("%v.", m)) {
 			switch m {
 			case "strings", "unsafe", "log", "runtime", "fmt":
 				{
 					fmt.Fprintf(bb, "\"%v\"\n", m)
-				}
-
-			case "hex":
-				{
-					fmt.Fprintln(bb, "\"encoding/hex\"")
 				}
 
 			case "qt":
@@ -408,9 +407,20 @@ import (
 
 	bb.Write(input)
 
-	var out, err = format.Source(bb.Bytes())
+	var out, err = format.Source(renameSubClasses(bb.Bytes(), "_"))
 	if err != nil {
 		utils.Log.WithError(err).Panicln("failed to format:", module)
 	}
 	return out
+}
+
+func renameSubClasses(in []byte, r string) []byte {
+	for _, c := range parser.ClassMap {
+		if c.Fullname != "" {
+			in = []byte(strings.Replace(string(in), c.Name, strings.Replace(c.Fullname, "::", r, -1), -1))
+			in = []byte(strings.Replace(string(in), "C."+strings.Replace(c.Fullname, "::", r, -1), "C."+c.Name, -1))
+			in = []byte(strings.Replace(string(in), "_New"+strings.Replace(c.Fullname, "::", r, -1), "_New"+c.Name, -1))
+		}
+	}
+	return in
 }

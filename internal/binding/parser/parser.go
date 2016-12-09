@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/therecipe/qt/internal/utils"
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -42,6 +43,11 @@ var (
 
 func GetModule(s string) (m *Module, err error) {
 	s = strings.ToLower(s)
+	fields := logrus.Fields{
+		"module": fmt.Sprintf("qt/%v", s),
+		"func": "GetModule",
+	}
+	utils.Log.WithFields(fields).Debug("loading module")
 
 	var goPath = utils.MustGoPath()
 
@@ -53,7 +59,7 @@ func GetModule(s string) (m *Module, err error) {
 
 	m = new(Module)
 	switch {
-	case utils.UseHomeBrew():
+	case utils.UseHomeBrew(), utils.UseMsys2():
 		{
 			err = xml.Unmarshal([]byte(utils.Load(filepath.Join(goPath, "src", "github.com", "therecipe", "qt", "internal", "binding", "files", "docs", "5.7.0", fmt.Sprintf("qt%v.index", s)))), &m)
 		}
